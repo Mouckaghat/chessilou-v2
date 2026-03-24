@@ -3,6 +3,7 @@ type BrandHeaderProps = {
   lobsterSrc: string;
   showBrandInfo: boolean;
   onToggle: () => void;
+  isVoiceLive?: boolean;
   texts: {
     brandShort: string;
     tagline: string;
@@ -20,41 +21,123 @@ export default function BrandHeader({
   lobsterSrc,
   showBrandInfo,
   onToggle,
+  isVoiceLive = false,
   texts,
 }: BrandHeaderProps) {
   return (
     <div style={{ marginBottom: 30 }}>
+      <style>
+        {`
+          @keyframes lobsterHaloBreath {
+            0% {
+              box-shadow:
+                0 0 18px rgba(37,99,235,0.28),
+                0 0 40px rgba(37,99,235,0.14);
+              transform: scale(1);
+            }
+            50% {
+              box-shadow:
+                0 0 34px rgba(37,99,235,0.50),
+                0 0 95px rgba(37,99,235,0.26);
+              transform: scale(1.015);
+            }
+            100% {
+              box-shadow:
+                0 0 18px rgba(37,99,235,0.28),
+                0 0 40px rgba(37,99,235,0.14);
+              transform: scale(1);
+            }
+          }
+
+          @keyframes lobsterHoverPulse {
+            0% {
+              transform: scale(1);
+            }
+            50% {
+              transform: scale(1.02);
+            }
+            100% {
+              transform: scale(1);
+            }
+          }
+
+          @keyframes liveBadgePulse {
+            0% {
+              opacity: 0.8;
+              box-shadow: 0 0 0 rgba(239,68,68,0.0);
+            }
+            50% {
+              opacity: 1;
+              box-shadow: 0 0 18px rgba(239,68,68,0.45);
+            }
+            100% {
+              opacity: 0.8;
+              box-shadow: 0 0 0 rgba(239,68,68,0.0);
+            }
+          }
+
+          .lobster-brand-shell {
+            position: relative;
+            display: inline-grid;
+            justify-items: center;
+            animation: lobsterHaloBreath 4.8s ease-in-out infinite;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+          }
+
+          .lobster-brand-shell:hover {
+            animation:
+              lobsterHaloBreath 4.8s ease-in-out infinite,
+              lobsterHoverPulse 0.9s ease-in-out infinite;
+          }
+
+          .lobster-live-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(239,68,68,0.96);
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            border: 1px solid rgba(255,255,255,0.25);
+            animation: liveBadgePulse 1.4s ease-in-out infinite;
+          }
+        `}
+      </style>
+
       <div
         onClick={onToggle}
         style={{
           display: "grid",
           justifyItems: "center",
           textAlign: "center",
-          gap: 12,
+          gap: 14,
           cursor: "pointer",
           userSelect: "none",
         }}
       >
         <div
+          className="lobster-brand-shell"
           style={{
-            width: 150,
-            height: 150,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background: "radial-gradient(circle, rgba(37,99,235,0.28) 0%, rgba(37,99,235,0.12) 45%, rgba(37,99,235,0.00) 75%)",
-            boxShadow:
-              "0 0 25px rgba(37,99,235,0.55), 0 0 55px rgba(37,99,235,0.28), inset 0 0 18px rgba(147,197,253,0.18)",
+            padding: 18,
+            borderRadius: 20,
+            background: "rgba(37,99,235,0.08)",
             border: "1px solid rgba(96,165,250,0.35)",
           }}
         >
+          {isVoiceLive && <div className="lobster-live-badge">LIVE</div>}
+
           <img
             src={lobsterSrc}
             alt={appName}
             style={{
-              width: 108,
-              height: 108,
+              width: 120,
+              height: 120,
               objectFit: "contain",
+              display: "block",
+              margin: "0 auto",
               filter: "drop-shadow(0 0 12px rgba(96,165,250,0.55))",
             }}
           />

@@ -1551,6 +1551,7 @@ export default function ChessilouV2() {
           lobsterSrc={lobster}
           showBrandInfo={showBrandInfo}
           onToggle={() => setShowBrandInfo((v) => !v)}
+          isVoiceLive={isListening}
           texts={{
             brandShort: "Lobster Inc.",
             tagline: "Voice Chess Family",
