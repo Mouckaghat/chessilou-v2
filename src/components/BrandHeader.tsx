@@ -23,28 +23,72 @@ export default function BrandHeader({
   texts,
 }: BrandHeaderProps) {
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom: 30 }}>
       <div
         onClick={onToggle}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
+          display: "grid",
+          justifyItems: "center",
+          textAlign: "center",
+          gap: 12,
           cursor: "pointer",
           userSelect: "none",
         }}
       >
-        <img
-          src={lobsterSrc}
-          alt={appName}
-          style={{ width: 56, height: 56, objectFit: "contain" }}
-        />
+        <div
+          style={{
+            width: 150,
+            height: 150,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            background: "radial-gradient(circle, rgba(37,99,235,0.28) 0%, rgba(37,99,235,0.12) 45%, rgba(37,99,235,0.00) 75%)",
+            boxShadow:
+              "0 0 25px rgba(37,99,235,0.55), 0 0 55px rgba(37,99,235,0.28), inset 0 0 18px rgba(147,197,253,0.18)",
+            border: "1px solid rgba(96,165,250,0.35)",
+          }}
+        >
+          <img
+            src={lobsterSrc}
+            alt={appName}
+            style={{
+              width: 108,
+              height: 108,
+              objectFit: "contain",
+              filter: "drop-shadow(0 0 12px rgba(96,165,250,0.55))",
+            }}
+          />
+        </div>
+
         <div>
-          <div style={{ fontSize: 28, fontWeight: 800 }}>{texts.brandShort}</div>
-          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.70)" }}>
+          <div
+            style={{
+              fontSize: 34,
+              fontWeight: 900,
+              letterSpacing: 0.4,
+            }}
+          >
+            {texts.brandShort}
+          </div>
+
+          <div
+            style={{
+              fontSize: 16,
+              color: "rgba(255,255,255,0.82)",
+              fontWeight: 600,
+              marginTop: 4,
+            }}
+          >
             {texts.tagline}
           </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+
+          <div
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.48)",
+              marginTop: 6,
+            }}
+          >
             {texts.brandClickHint}
           </div>
         </div>
@@ -53,11 +97,13 @@ export default function BrandHeader({
       {showBrandInfo && (
         <div
           style={{
-            marginTop: 16,
+            marginTop: 18,
             border: "1px solid rgba(255,255,255,0.10)",
             borderRadius: 18,
             padding: 18,
             background: "rgba(255,255,255,0.03)",
+            maxWidth: 900,
+            marginInline: "auto",
           }}
         >
           <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>

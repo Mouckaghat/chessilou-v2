@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Chess } from "chess.js";
@@ -123,23 +122,23 @@ function getUiText(lang: Lang) {
     return {
       playerType: "Type de joueur",
       twoPlayers: "Deux joueurs",
-      versusAi: "Contre Loulu",
+      versusAi: "Contre Lili",
       localClassicOnly: "En mode deux joueurs, seul le mode classique est disponible.",
       chooseMode: "Mode de jeu",
       stop: "Stop",
       start: "Démarrer",
       boardHint: "Touchez une pièce ou glissez-déposez-la.",
       classicAvailable: "Classique disponible",
-      louluModesAvailable: "Tous les modes Loulu disponibles",
+      liliModesAvailable: "Tous les modes Lili disponibles",
       dragFallback: "Le glisser-déposer reste disponible.",
-      aiThinking: "Loulu réfléchit...",
+      aiThinking: "Lili réfléchit...",
       mateIn5: "Mat en 5",
       godSaveTheKing: "Que Dieu sauve le Roi",
       battleRoyal: "Bataille Royale",
-      louluPlayed: "Loulu a joué",
-      louluCheckmated: "Loulu est échec et mat.",
+      liliPlayed: "Lili a joué",
+      liliCheckmated: "Lili est échec et mat.",
       youCheckmated: "Vous êtes échec et mat.",
-      louluResigns: "Loulu abandonne.",
+      liliResigns: "Lili abandonne.",
       youResign: "Vous abandonnez.",
       boardSize: "Taille de l’échiquier",
       winGauge: "Balance de la partie",
@@ -168,23 +167,23 @@ function getUiText(lang: Lang) {
     return {
       playerType: "Spielertyp",
       twoPlayers: "Zwei Spieler",
-      versusAi: "Gegen Loulu",
+      versusAi: "Gegen Lili",
       localClassicOnly: "Im Zwei-Spieler-Modus ist nur Klassisch verfügbar.",
       chooseMode: "Spielmodus",
       stop: "Stopp",
       start: "Starten",
       boardHint: "Tippe auf eine Figur oder ziehe sie per Drag-and-Drop.",
       classicAvailable: "Klassisch verfügbar",
-      louluModesAvailable: "Alle Loulu-Modi verfügbar",
+      liliModesAvailable: "Alle Lili-Modi verfügbar",
       dragFallback: "Drag-and-Drop bleibt verfügbar.",
-      aiThinking: "Loulu denkt nach...",
+      aiThinking: "Lili denkt nach...",
       mateIn5: "Matt in 5",
       godSaveTheKing: "Gott schütze den König",
       battleRoyal: "Battle Royal",
-      louluPlayed: "Loulu spielte",
-      louluCheckmated: "Loulu ist schachmatt.",
+      liliPlayed: "Lili spielte",
+      liliCheckmated: "Lili ist schachmatt.",
       youCheckmated: "Du bist schachmatt.",
-      louluResigns: "Loulu gibt auf.",
+      liliResigns: "Lili gibt auf.",
       youResign: "Du gibst auf.",
       boardSize: "Brettgröße",
       winGauge: "Spielbalance",
@@ -212,23 +211,23 @@ function getUiText(lang: Lang) {
   return {
     playerType: "Player type",
     twoPlayers: "Two players",
-    versusAi: "Play vs Loulu",
+    versusAi: "Play vs Lili",
     localClassicOnly: "In two-player mode, only Classic is available.",
     chooseMode: "Game mode",
     stop: "Stop",
     start: "Start game",
     boardHint: "Tap a piece or drag and drop it.",
     classicAvailable: "Classic available",
-    louluModesAvailable: "All Loulu modes available",
+    liliModesAvailable: "All Lili modes available",
     dragFallback: "Drag and drop remains available.",
-    aiThinking: "Loulu is thinking...",
+    aiThinking: "Lili is thinking...",
     mateIn5: "Mate in 5",
     godSaveTheKing: "God save the King",
     battleRoyal: "Battle Royal",
-    louluPlayed: "Loulu played",
-    louluCheckmated: "Loulu is checkmated.",
+    liliPlayed: "Lili played",
+    liliCheckmated: "Lili is checkmated.",
     youCheckmated: "You are checkmated.",
-    louluResigns: "Loulu resigns.",
+    liliResigns: "Lili resigns.",
     youResign: "You resign.",
     boardSize: "Board size",
     winGauge: "Game balance",
@@ -548,7 +547,7 @@ export default function ChessilouV2() {
       } else if (finalGame.isDraw()) {
         setStatus(t.draw);
       } else {
-        setStatus(`${ui.louluPlayed}: ${pendingAiSan ?? ""}`);
+        setStatus(`${ui.liliPlayed}: ${pendingAiSan ?? ""}`);
       }
 
       setPendingAiFen(null);
@@ -556,7 +555,7 @@ export default function ChessilouV2() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, ui.youCheckmated, ui.louluPlayed, t.draw]);
+  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, ui.youCheckmated, ui.liliPlayed, t.draw]);
 
   const winChances = useMemo(() => getWinChances(game), [game]);
   const localizedTurn = useMemo(() => {
@@ -633,7 +632,7 @@ export default function ChessilouV2() {
 
     if (nextGame.isCheckmate()) {
       if (setup.opponentMode === "ai" && moveColor === "w") {
-        setStatus(ui.louluCheckmated);
+        setStatus(ui.liliCheckmated);
       } else {
         setStatus(`${t.checkmateDelivered} ${getWinnerLabel(lang, moveColor)}.`);
       }
@@ -655,7 +654,7 @@ export default function ChessilouV2() {
     const chancesAfterHumanMove = getWinChances(nextGame);
 
     if (chancesAfterHumanMove.black <= 5) {
-      setStatus(ui.louluResigns);
+      setStatus(ui.liliResigns);
       return nextGame;
     }
 
@@ -1161,7 +1160,15 @@ export default function ChessilouV2() {
               </Panel>
 
               <Panel title={t.languageLabel}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr",
+                    gap: 12,
+                    maxWidth: 420,
+                    width: "100%",
+                  }}
+                >
                   {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
                     <ActionButton
                       key={languageKey}
@@ -1364,7 +1371,7 @@ export default function ChessilouV2() {
         <Panel title={ui.playerType}>
           <div style={{ display: "grid", gap: 16 }}>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.70)" }}>
-              {setup.opponentMode === "local" ? ui.classicAvailable : ui.louluModesAvailable}
+              {setup.opponentMode === "local" ? ui.classicAvailable : ui.liliModesAvailable}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1475,7 +1482,15 @@ export default function ChessilouV2() {
         </Panel>
 
         <Panel title={t.languageLabel}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gap: 12,
+              maxWidth: 420,
+              width: "100%",
+            }}
+          >
             {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
               <ActionButton
                 key={languageKey}
@@ -1537,8 +1552,8 @@ export default function ChessilouV2() {
           showBrandInfo={showBrandInfo}
           onToggle={() => setShowBrandInfo((v) => !v)}
           texts={{
-            brandShort: t.brandShort,
-            tagline: t.tagline,
+            brandShort: "Lobster Inc.",
+            tagline: "Voice Chess Family",
             brandClickHint: t.brandClickHint,
             brandTitle: t.brandTitle,
             brandSubtitle: t.brandSubtitle,
