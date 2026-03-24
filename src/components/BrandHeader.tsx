@@ -7,6 +7,7 @@ type BrandHeaderProps = {
   texts: {
     brandShort: string;
     tagline: string;
+    dedication: string;
     brandClickHint: string;
     brandTitle: string;
     brandSubtitle: string;
@@ -146,7 +147,7 @@ export default function BrandHeader({
         <div>
           <div
             style={{
-              fontSize: 34,
+              fontSize: 38,
               fontWeight: 900,
               letterSpacing: 0.4,
             }}
@@ -158,7 +159,7 @@ export default function BrandHeader({
             style={{
               fontSize: 16,
               color: "rgba(255,255,255,0.82)",
-              fontWeight: 600,
+              fontWeight: 700,
               marginTop: 4,
             }}
           >
@@ -167,9 +168,20 @@ export default function BrandHeader({
 
           <div
             style={{
+              fontSize: 14,
+              color: "#93c5fd",
+              fontWeight: 600,
+              marginTop: 8,
+            }}
+          >
+            {texts.dedication}
+          </div>
+
+          <div
+            style={{
               fontSize: 12,
               color: "rgba(255,255,255,0.48)",
-              marginTop: 6,
+              marginTop: 8,
             }}
           >
             {texts.brandClickHint}

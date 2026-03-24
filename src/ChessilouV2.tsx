@@ -1364,8 +1364,10 @@ export default function ChessilouV2() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 1fr)",
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: 24,
+          maxWidth: 960,
+          margin: "0 auto",
         }}
       >
         <Panel title={ui.playerType}>
@@ -1489,6 +1491,7 @@ export default function ChessilouV2() {
               gap: 12,
               maxWidth: 420,
               width: "100%",
+              margin: "0 auto",
             }}
           >
             {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
@@ -1507,18 +1510,22 @@ export default function ChessilouV2() {
           </div>
         </Panel>
 
-        <Panel title={t.startGame}>
-          <ActionButton
-            onClick={() => {
-              restartGame();
-              setScreen("play");
-            }}
-            active
-            fullWidth
-          >
-            {ui.start}
-          </ActionButton>
-        </Panel>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div style={{ width: "100%", maxWidth: 420 }}>
+            <Panel title={t.startGame}>
+              <ActionButton
+                onClick={() => {
+                  restartGame();
+                  setScreen("play");
+                }}
+                active
+                fullWidth
+              >
+                {ui.start}
+              </ActionButton>
+            </Panel>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -1553,8 +1560,9 @@ export default function ChessilouV2() {
           onToggle={() => setShowBrandInfo((v) => !v)}
           isVoiceLive={isListening}
           texts={{
-            brandShort: "Lobster Inc.",
-            tagline: "Voice Chess Family",
+            brandShort: "Chessilou",
+            tagline: "by Lobster Inc. Voice Chess Family",
+            dedication: "Happy Birthday Sandra — welcome to our chess family.",
             brandClickHint: t.brandClickHint,
             brandTitle: t.brandTitle,
             brandSubtitle: t.brandSubtitle,
