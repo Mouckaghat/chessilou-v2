@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Chess } from "chess.js";
 import {
@@ -7,10 +8,7 @@ import {
   Volume2,
   Hand,
   Sparkles,
-  Bot,
-  Users,
   StopCircle,
-  Play,
   Flag,
   ChevronDown,
   ChevronUp,
@@ -105,7 +103,7 @@ function squareColor(square: string) {
   return (file + rank) % 2 === 0 ? "light" : "dark";
 }
 
-function getPieceSymbol(piece: { type: string; color: string } | null) {
+function getPieceSymbol(piece: { type: string; color: string } | null | undefined) {
   if (!piece) return "";
 
   const symbols: Record<string, { w: string; b: string }> = {
@@ -157,6 +155,7 @@ function getUiText(lang: Lang) {
       voiceStop: "Arrêter la voix",
       voiceUnsupported: "La reconnaissance vocale n’est pas disponible dans ce navigateur.",
       voiceHeard: "Entendu",
+      listening: "Écoute en cours...",
       modeClassicHelp: "Partie classique normale.",
       modeLearnHelp: "Mode apprentissage : aide visuelle plus présente.",
       modeMate5Help: "Prototype : attaque guidée, objectif tactique offensif.",
@@ -201,6 +200,7 @@ function getUiText(lang: Lang) {
       voiceStop: "Sprache stoppen",
       voiceUnsupported: "Spracherkennung ist in diesem Browser nicht verfügbar.",
       voiceHeard: "Gehört",
+      listening: "Hört zu...",
       modeClassicHelp: "Normale klassische Partie.",
       modeLearnHelp: "Lernmodus: stärkere visuelle Hilfe.",
       modeMate5Help: "Prototyp: Angriffsszenario mit taktischem Ziel.",
@@ -244,6 +244,7 @@ function getUiText(lang: Lang) {
     voiceStop: "Stop voice",
     voiceUnsupported: "Speech recognition is not available in this browser.",
     voiceHeard: "Heard",
+    listening: "Listening...",
     modeClassicHelp: "Normal classic game.",
     modeLearnHelp: "Learning mode: stronger visual help.",
     modeMate5Help: "Prototype: attacking scenario with tactical objective.",
@@ -380,7 +381,6 @@ function TugOfWarGauge({
             transition: "width 300ms ease",
           }}
         />
-
         <div
           style={{
             position: "absolute",
@@ -402,35 +402,17 @@ function TugOfWarGauge({
 function getModeStart(gameMode: GameMode) {
   switch (gameMode) {
     case "classic":
-      return {
-        fen: undefined as string | undefined,
-        status: "Classic mode ready.",
-      };
+      return { fen: undefined as string | undefined };
     case "learn":
-      return {
-        fen: undefined as string | undefined,
-        status: "Learn mode ready.",
-      };
+      return { fen: undefined as string | undefined };
     case "mate5":
-      return {
-        fen: "r1bq1rk1/pppp1ppp/2n5/4N3/2B1P3/8/PPPP1PPP/RNBQ1RK1 w - - 0 1",
-        status: "Mate in 5 prototype ready.",
-      };
+      return { fen: "r1bq1rk1/pppp1ppp/2n5/4N3/2B1P3/8/PPPP1PPP/RNBQ1RK1 w - - 0 1" };
     case "protect":
-      return {
-        fen: "4k3/8/8/8/8/2q5/4K3/8 w - - 0 1",
-        status: "God save the King prototype ready.",
-      };
+      return { fen: "4k3/8/8/8/8/2q5/4K3/8 w - - 0 1" };
     case "battle":
-      return {
-        fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNQ w Qkq - 0 1",
-        status: "Battle Royal prototype ready.",
-      };
+      return { fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNQ w Qkq - 0 1" };
     default:
-      return {
-        fen: undefined as string | undefined,
-        status: "Mode ready.",
-      };
+      return { fen: undefined as string | undefined };
   }
 }
 
@@ -451,8 +433,8 @@ function normalizeVoiceText(text: string) {
     .replace(/six/g, "6")
     .replace(/seven/g, "7")
     .replace(/eight/g, "8")
-    .replace(/to/g, " ")
-    .replace(/too/g, " ")
+    .replace(/\bto\b/g, " ")
+    .replace(/\btoo\b/g, " ")
     .replace(/-/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -462,13 +444,11 @@ function parseVoiceMove(text: string, game: Chess) {
   const normalized = normalizeVoiceText(text);
 
   if (normalized.includes("castle kingside") || normalized.includes("short castle")) {
-    const move = game.turn() === "w" ? { from: "e1", to: "g1" } : { from: "e8", to: "g8" };
-    return move;
+    return game.turn() === "w" ? { from: "e1", to: "g1" } : { from: "e8", to: "g8" };
   }
 
   if (normalized.includes("castle queenside") || normalized.includes("long castle")) {
-    const move = game.turn() === "w" ? { from: "e1", to: "c1" } : { from: "e8", to: "c8" };
-    return move;
+    return game.turn() === "w" ? { from: "e1", to: "c1" } : { from: "e8", to: "c8" };
   }
 
   const matches = normalized.match(/[a-h][1-8]/g);
@@ -494,8 +474,8 @@ export default function ChessilouV2() {
   const [game, setGame] = useState(() => new Chess());
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalTargets, setLegalTargets] = useState<string[]>([]);
-  const [status, setStatus] = useState(t.welcome);
-  const [lastVoiceText, setLastVoiceText] = useState("");
+  const [status, setStatus] = useState<string>(t.welcome);
+  const [lastVoiceText, setLastVoiceText] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
   const [showBrandInfo, setShowBrandInfo] = useState(false);
   const [tutorialExample, setTutorialExample] = useState<TutorialExample | null>(
@@ -544,6 +524,16 @@ export default function ChessilouV2() {
   }, [screen, setup.controlMode, setup.gameMode, game, selectedSquare]);
 
   useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isAiThinking || !pendingAiFen) return;
 
     const delay = getAiDelay(setup.gameMode);
@@ -558,7 +548,7 @@ export default function ChessilouV2() {
       } else if (finalGame.isDraw()) {
         setStatus(t.draw);
       } else {
-        setStatus(`${ui.louluPlayed}: ${pendingAiSan}`);
+        setStatus(`${ui.louluPlayed}: ${pendingAiSan ?? ""}`);
       }
 
       setPendingAiFen(null);
@@ -566,17 +556,7 @@ export default function ChessilouV2() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, t.draw, ui.louluPlayed, ui.youCheckmated]);
-
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-    };
-  }, []);
+  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, ui.youCheckmated, ui.louluPlayed, t.draw]);
 
   const winChances = useMemo(() => getWinChances(game), [game]);
   const localizedTurn = useMemo(() => {
@@ -767,15 +747,13 @@ export default function ChessilouV2() {
 
     recognition.onstart = () => {
       setIsListening(true);
-      setStatus(ui.aiThinking === "Loulu is thinking..." ? "Listening..." : status);
+      setStatus(ui.listening);
     };
 
     recognition.onresult = (event: any) => {
       const result = event.results[event.results.length - 1];
       const transcript = result[0]?.transcript ?? "";
-      if (transcript) {
-        handleVoiceTranscript(transcript);
-      }
+      if (transcript) handleVoiceTranscript(transcript);
     };
 
     recognition.onerror = () => {
@@ -883,11 +861,6 @@ export default function ChessilouV2() {
     setStatus(ui.youResign);
   }
 
-  const smallMuted: React.CSSProperties = {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.70)",
-  };
-
   function renderSquare(square: string) {
     const piece = game.get(square as any);
     const symbol = getPieceSymbol(piece);
@@ -954,11 +927,11 @@ export default function ChessilouV2() {
           />
         )}
 
-        {symbol && (
+        {symbol && piece && (
           <div
             draggable={!isAiThinking && !game.isGameOver()}
             onDragStart={(e) => {
-              if (!piece || piece.color !== game.turn() || isAiThinking || game.isGameOver()) {
+              if (piece.color !== game.turn() || isAiThinking || game.isGameOver()) {
                 e.preventDefault();
                 return;
               }
@@ -1298,6 +1271,87 @@ export default function ChessilouV2() {
     </Panel>
   );
 
+  const boardView = (
+    <Panel title={t.board}>
+      <div
+        style={{
+          borderRadius: 20,
+          overflow: "visible",
+          border: "1px solid rgba(255,255,255,0.10)",
+          background: "#000",
+          padding: 12,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "24px minmax(0, 1fr)",
+            gap: 8,
+            alignItems: "stretch",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateRows: "repeat(8, 1fr)",
+              alignItems: "center",
+              textAlign: "center",
+              color: "rgba(255,255,255,0.70)",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            {RANKS.map((rank) => (
+              <div key={rank}>{rank}</div>
+            ))}
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+                width: "100%",
+                maxWidth: boardSize,
+                aspectRatio: "1 / 1",
+                border: "1px solid rgba(255,255,255,0.10)",
+                margin: "0 auto",
+              }}
+            >
+              {RANKS.flatMap((rank) =>
+                FILES.map((file) => {
+                  const square = `${file}${rank}`;
+                  return renderSquare(square);
+                })
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+                width: "100%",
+                maxWidth: boardSize,
+                margin: "8px auto 0 auto",
+                color: "rgba(255,255,255,0.70)",
+                fontSize: 14,
+                fontWeight: 600,
+                textAlign: "center",
+              }}
+            >
+              {FILES.map((file) => (
+                <div key={file}>{file}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {helperPanel}
+    </Panel>
+  );
+
   const setupView = (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <div
@@ -1309,7 +1363,7 @@ export default function ChessilouV2() {
       >
         <Panel title={ui.playerType}>
           <div style={{ display: "grid", gap: 16 }}>
-            <div style={smallMuted}>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.70)" }}>
               {setup.opponentMode === "local" ? ui.classicAvailable : ui.louluModesAvailable}
             </div>
 
@@ -1325,10 +1379,7 @@ export default function ChessilouV2() {
                 active={setup.opponentMode === "local"}
                 fullWidth
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  <Users size={16} />
-                  {ui.twoPlayers}
-                </div>
+                {ui.twoPlayers}
               </ActionButton>
 
               <ActionButton
@@ -1341,24 +1392,8 @@ export default function ChessilouV2() {
                 active={setup.opponentMode === "ai"}
                 fullWidth
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  <Bot size={16} />
-                  {ui.versusAi}
-                </div>
+                {ui.versusAi}
               </ActionButton>
-            </div>
-
-            <div
-              style={{
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.10)",
-                padding: 16,
-                fontSize: 14,
-                lineHeight: 1.8,
-                color: "rgba(255,255,255,0.82)",
-              }}
-            >
-              {setup.opponentMode === "local" ? ui.localClassicOnly : ui.modeClassicHelp}
             </div>
           </div>
         </Panel>
@@ -1421,10 +1456,7 @@ export default function ChessilouV2() {
               active={setup.controlMode === "quiet"}
               fullWidth
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <Hand size={16} />
-                {t.quiet}
-              </div>
+              {t.quiet}
             </ActionButton>
 
             <ActionButton
@@ -1437,10 +1469,7 @@ export default function ChessilouV2() {
               active={setup.controlMode === "voice"}
               fullWidth
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <Volume2 size={16} />
-                {t.voice}
-              </div>
+              {t.voice}
             </ActionButton>
           </div>
         </Panel>
@@ -1472,190 +1501,22 @@ export default function ChessilouV2() {
             active
             fullWidth
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <Play size={16} />
-              {ui.start}
-            </div>
+            {ui.start}
           </ActionButton>
         </Panel>
       </div>
     </motion.div>
   );
 
-  const playClassicView = (
-    <div style={{ display: "grid", gap: 20 }}>
-      {topImmersiveBar}
-
-      <Panel title={t.board}>
-        <div
-          style={{
-            borderRadius: 20,
-            overflow: "visible",
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "#000",
-            padding: 12,
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "24px minmax(0, 1fr)",
-              gap: 8,
-              alignItems: "stretch",
-              width: "100%",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateRows: "repeat(8, 1fr)",
-                alignItems: "center",
-                textAlign: "center",
-                color: "rgba(255,255,255,0.70)",
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              {RANKS.map((rank) => (
-                <div key={rank}>{rank}</div>
-              ))}
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-                  width: "100%",
-                  maxWidth: boardSize,
-                  aspectRatio: "1 / 1",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  margin: "0 auto",
-                }}
-              >
-                {RANKS.flatMap((rank) =>
-                  FILES.map((file) => {
-                    const square = `${file}${rank}`;
-                    return renderSquare(square);
-                  })
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-                  width: "100%",
-                  maxWidth: boardSize,
-                  margin: "8px auto 0 auto",
-                  color: "rgba(255,255,255,0.70)",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  textAlign: "center",
-                }}
-              >
-                {FILES.map((file) => (
-                  <div key={file}>{file}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {helperPanel}
-      </Panel>
-
-      {minimalControls}
-      {advancedOptionsPanel}
-    </div>
-  );
-
-  const playModePreview = (
-    <div style={{ display: "grid", gap: 24 }}>
-      {topImmersiveBar}
-
-      <Panel title={t.board}>
-        <div
-          style={{
-            borderRadius: 20,
-            overflow: "visible",
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "#000",
-            padding: 12,
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "24px minmax(0, 1fr)",
-              gap: 8,
-              alignItems: "stretch",
-              width: "100%",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateRows: "repeat(8, 1fr)",
-                alignItems: "center",
-                textAlign: "center",
-                color: "rgba(255,255,255,0.70)",
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              {RANKS.map((rank) => (
-                <div key={rank}>{rank}</div>
-              ))}
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-                  width: "100%",
-                  maxWidth: boardSize,
-                  aspectRatio: "1 / 1",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  margin: "0 auto",
-                }}
-              >
-                {RANKS.flatMap((rank) =>
-                  FILES.map((file) => {
-                    const square = `${file}${rank}`;
-                    return renderSquare(square);
-                  })
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-                  width: "100%",
-                  maxWidth: boardSize,
-                  margin: "8px auto 0 auto",
-                  color: "rgba(255,255,255,0.70)",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  textAlign: "center",
-                }}
-              >
-                {FILES.map((file) => (
-                  <div key={file}>{file}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {helperPanel}
-      </Panel>
-
-      {minimalControls}
-      {advancedOptionsPanel}
-    </div>
+  const playView = (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <div style={{ display: "grid", gap: 20 }}>
+        {topImmersiveBar}
+        {boardView}
+        {minimalControls}
+        {advancedOptionsPanel}
+      </div>
+    </motion.div>
   );
 
   return (
@@ -1687,11 +1548,7 @@ export default function ChessilouV2() {
           }}
         />
 
-        {screen === "setup"
-          ? setupView
-          : setup.gameMode === "classic" || setup.gameMode === "learn" || setup.gameMode === "mate5" || setup.gameMode === "protect" || setup.gameMode === "battle"
-          ? playModePreview
-          : playClassicView}
+        {screen === "setup" ? setupView : playView}
 
         <div style={{ marginTop: 24, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
           {t.allRightsReserved}
