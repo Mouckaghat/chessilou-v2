@@ -81,16 +81,18 @@ function squareColor(square: string) {
 function getPieceSymbol(piece: { type: string; color: string } | null | undefined) {
   if (!piece) return "";
 
-  const symbols: Record<string, { w: string; b: string }> = {
-    p: { w: "♙", b: "♟" },
-    r: { w: "♖", b: "♜" },
-    n: { w: "♘", b: "♞" },
-    b: { w: "♗", b: "♝" },
-    q: { w: "♕", b: "♛" },
-    k: { w: "♔", b: "♚" },
+  // Use solid piece shapes for BOTH sides.
+  // White/black appearance is controlled by CSS color.
+  const solidSymbols: Record<string, string> = {
+    p: "♟",
+    r: "♜",
+    n: "♞",
+    b: "♝",
+    q: "♛",
+    k: "♚",
   };
 
-  return symbols[piece.type]?.[piece.color as "w" | "b"] ?? "";
+  return solidSymbols[piece.type] ?? "";
 }
 
 function getUiText(lang: Lang) {
