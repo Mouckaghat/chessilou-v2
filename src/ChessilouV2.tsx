@@ -37,6 +37,8 @@ const BRAND = {
   name: "Chessilou",
 };
 
+type Difficulty = 1 | 2 | 3 | 4 | 5;
+
 type SetupState = {
   gameMode: GameMode;
   opponentMode: OpponentMode;
@@ -56,32 +58,6 @@ type WinChances = {
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
-
-function randomAiMove(game: Chess) {
-  const moves = game.moves({ verbose: true });
-  if (!moves.length) return null;
-
-  const scored = moves.map((m) => {
-    let score = Math.random();
-
-    if (m.captured) score += 10;
-    if (m.promotion) score += 8;
-
-    const test = new Chess(game.fen());
-    test.move(m);
-
-    if (test.isCheckmate()) score += 1000;
-    else if (test.inCheck()) score += 5;
-
-    const centerBonus = ["d4", "d5", "e4", "e5"].includes(m.to) ? 0.8 : 0;
-    score += centerBonus;
-
-    return { move: m, score };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored[0].move;
-}
 
 function getRandomTutorialExample(): TutorialExample {
   const examples: TutorialExample[] = [
@@ -125,6 +101,7 @@ function getUiText(lang: Lang) {
       versusAi: "Contre Lili",
       localClassicOnly: "En mode deux joueurs, seul le mode classique est disponible.",
       chooseMode: "Mode de jeu",
+      chooseDifficulty: "Niveau de difficulté",
       stop: "Stop",
       start: "Démarrer",
       boardHint: "Touchez une pièce ou glissez-déposez-la.",
@@ -160,6 +137,12 @@ function getUiText(lang: Lang) {
       modeMate5Help: "Prototype : attaque guidée, objectif tactique offensif.",
       modeProtectHelp: "Prototype : survivez et protégez votre roi.",
       modeBattleHelp: "Prototype : bataille déséquilibrée et plus sauvage.",
+      difficultyLabel: "Difficulté",
+      d1: "Débutant",
+      d2: "Hustler de rue",
+      d3: "Compétition",
+      d4: "Bobby Fischer",
+      d5: "Judit Polgár",
     };
   }
 
@@ -170,6 +153,7 @@ function getUiText(lang: Lang) {
       versusAi: "Gegen Lili",
       localClassicOnly: "Im Zwei-Spieler-Modus ist nur Klassisch verfügbar.",
       chooseMode: "Spielmodus",
+      chooseDifficulty: "Schwierigkeitsgrad",
       stop: "Stopp",
       start: "Starten",
       boardHint: "Tippe auf eine Figur oder ziehe sie per Drag-and-Drop.",
@@ -205,6 +189,12 @@ function getUiText(lang: Lang) {
       modeMate5Help: "Prototyp: Angriffsszenario mit taktischem Ziel.",
       modeProtectHelp: "Prototyp: Überleben und den König schützen.",
       modeBattleHelp: "Prototyp: wildere, ungleichere Schlacht.",
+      difficultyLabel: "Schwierigkeit",
+      d1: "Anfänger",
+      d2: "Straßen-Hustler",
+      d3: "Wettkampf",
+      d4: "Bobby Fischer",
+      d5: "Judit Polgár",
     };
   }
 
@@ -214,6 +204,7 @@ function getUiText(lang: Lang) {
     versusAi: "Play vs Lili",
     localClassicOnly: "In two-player mode, only Classic is available.",
     chooseMode: "Game mode",
+    chooseDifficulty: "Difficulty level",
     stop: "Stop",
     start: "Start game",
     boardHint: "Tap a piece or drag and drop it.",
@@ -249,6 +240,12 @@ function getUiText(lang: Lang) {
     modeMate5Help: "Prototype: attacking scenario with tactical objective.",
     modeProtectHelp: "Prototype: survive and protect your king.",
     modeBattleHelp: "Prototype: wilder, more unbalanced battle.",
+    difficultyLabel: "Difficulty",
+    d1: "Newbie",
+    d2: "Street Hustler",
+    d3: "Competition",
+    d4: "Bobby Fischer",
+    d5: "Judit Polgár",
   };
 }
 
@@ -316,6 +313,52 @@ function evaluatePosition(game: Chess) {
   }
 
   return score;
+}
+
+function getBestMove(game: Chess, difficulty: Difficulty) {
+  const moves = game.moves({ verbose: true });
+  if (!moves.length) return null;
+
+  const scored = moves.map((m) => {
+    const test = new Chess(game.fen());
+    test.move(m);
+
+    let score = 0;
+
+    score += Math.random() * (6 - difficulty);
+
+    if (m.captured) score += 5 + difficulty * 2;
+    if (m.promotion) score += 10 + difficulty * 2;
+    if (test.inCheck()) score += 3 * difficulty;
+    if (test.isCheckmate()) score += 1000;
+
+    const centerBonus = ["d4", "d5", "e4", "e5"].includes(m.to) ? difficulty : 0;
+    score += centerBonus;
+
+    if (difficulty >= 3) {
+      score += Math.abs(evaluatePosition(test)) * difficulty;
+    }
+
+    return { move: m, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  if (difficulty === 1) {
+    return scored[Math.floor(Math.random() * scored.length)].move;
+  }
+
+  if (difficulty === 2) {
+    const pool = scored.slice(0, Math.min(3, scored.length));
+    return pool[Math.floor(Math.random() * pool.length)].move;
+  }
+
+  if (difficulty === 3) {
+    const pool = scored.slice(0, Math.min(2, scored.length));
+    return pool[Math.floor(Math.random() * pool.length)].move;
+  }
+
+  return scored[0].move;
 }
 
 function getWinChances(game: Chess): WinChances {
@@ -467,6 +510,8 @@ export default function ChessilouV2() {
     controlMode: "quiet",
   });
 
+  const [difficulty, setDifficulty] = useState<Difficulty>(1);
+
   const t = translations[lang];
   const ui = getUiText(lang);
 
@@ -558,11 +603,29 @@ export default function ChessilouV2() {
   }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, ui.youCheckmated, ui.liliPlayed, t.draw]);
 
   const winChances = useMemo(() => getWinChances(game), [game]);
+
   const localizedTurn = useMemo(() => {
     if (lang === "fr") return game.turn() === "w" ? "Blanc" : "Noir";
     if (lang === "de") return game.turn() === "w" ? "Weiß" : "Schwarz";
     return game.turn() === "w" ? "White" : "Black";
   }, [game, lang]);
+
+  const difficultyName = useMemo(() => {
+    switch (difficulty) {
+      case 1:
+        return ui.d1;
+      case 2:
+        return ui.d2;
+      case 3:
+        return ui.d3;
+      case 4:
+        return ui.d4;
+      case 5:
+        return ui.d5;
+      default:
+        return ui.d1;
+    }
+  }, [difficulty, ui.d1, ui.d2, ui.d3, ui.d4, ui.d5]);
 
   const whiteResignThresholdReached = !game.isGameOver() && winChances.white <= 15;
   const blackResignThresholdReached = !game.isGameOver() && winChances.black <= 15;
@@ -653,12 +716,12 @@ export default function ChessilouV2() {
 
     const chancesAfterHumanMove = getWinChances(nextGame);
 
-    if (chancesAfterHumanMove.black <= 5) {
+    if (chancesAfterHumanMove.black <= 5 && difficulty <= 2) {
       setStatus(ui.liliResigns);
       return nextGame;
     }
 
-    const aiMove = randomAiMove(nextGame);
+    const aiMove = getBestMove(nextGame, difficulty);
     if (!aiMove) return nextGame;
 
     const aiGame = new Chess(nextGame.fen());
@@ -956,11 +1019,11 @@ export default function ChessilouV2() {
                   ? "grab"
                   : "default",
               color: piece.color === "w" ? "#ffffff" : "#000000",
-              WebkitTextStroke: piece.color === "w" ? "1px #0f172a" : "1px #111827",
+              WebkitTextStroke: piece.color === "w" ? "1.2px #020617" : "1px #111827",
               textShadow:
                 piece.color === "w"
-                  ? "0 0 2px rgba(15,23,42,0.8), 0 1px 2px rgba(15,23,42,0.8)"
-                  : "0 0 2px rgba(255,255,255,0.10), 0 1px 1px rgba(255,255,255,0.08)",
+                  ? "0 1px 2px rgba(2,6,23,0.9)"
+                  : "0 1px 1px rgba(255,255,255,0.08)",
             }}
           >
             {symbol}
@@ -1036,6 +1099,12 @@ export default function ChessilouV2() {
           {ui.boardStatus}
         </div>
         <div style={{ fontWeight: 700, fontSize: 16 }}>{status}</div>
+
+        {setup.opponentMode === "ai" && (
+          <div style={{ fontSize: 14, color: "#93c5fd" }}>
+            {ui.difficultyLabel}: {difficultyName}
+          </div>
+        )}
 
         {isAiThinking && (
           <div style={{ fontSize: 14, color: "#60a5fa" }}>{ui.aiThinking}</div>
@@ -1148,6 +1217,12 @@ export default function ChessilouV2() {
                       ? ui.godSaveTheKing
                       : ui.battleRoyal}
                   </div>
+                  {setup.opponentMode === "ai" && (
+                    <div>
+                      <span style={{ color: "rgba(255,255,255,0.70)" }}>{ui.difficultyLabel}:</span>{" "}
+                      {difficultyName}
+                    </div>
+                  )}
                   <div>
                     <span style={{ color: "rgba(255,255,255,0.70)" }}>{t.languageLabel}:</span>{" "}
                     {t.langNames[lang]}
@@ -1406,6 +1481,33 @@ export default function ChessilouV2() {
             </div>
           </div>
         </Panel>
+
+        {setup.opponentMode === "ai" && (
+          <Panel title={ui.chooseDifficulty}>
+            <div style={{ display: "grid", gap: 12 }}>
+              {(
+                [
+                  [1, ui.d1],
+                  [2, ui.d2],
+                  [3, ui.d3],
+                  [4, ui.d4],
+                  [5, ui.d5],
+                ] as [Difficulty, string][]
+              ).map(([lvl, label]) => (
+                <ActionButton
+                  key={lvl}
+                  onClick={() => setDifficulty(lvl)}
+                  active={difficulty === lvl}
+                  fullWidth
+                >
+                  <div style={{ textAlign: "left", width: "100%", fontWeight: 700 }}>
+                    {lvl}. {label}
+                  </div>
+                </ActionButton>
+              ))}
+            </div>
+          </Panel>
+        )}
 
         <Panel title={ui.chooseMode}>
           {setup.opponentMode === "local" ? (
