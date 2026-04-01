@@ -624,7 +624,7 @@ export default function ChessilouV2() {
   const entryTexts = {
     en: {
       landingTitle: "Chessilou - Universal Family Chess",
-      landingSubtitle: "Your playful chess companion by Lobster Inc.",
+      landingSubtitle: "Your playful chess company by Lobster Inc.",
       chooseLanguage: "Choose your language",
       tutorialTitle: "Friendly working instruction",
       slides: [
@@ -637,7 +637,7 @@ export default function ChessilouV2() {
     },
     fr: {
       landingTitle: "Chessilou - Universal Family Chess",
-      landingSubtitle: "Votre compagnon d’échecs par Lobster Inc.",
+      landingSubtitle: "Votre compagnie d’échecs ludique par Lobster Inc.",
       chooseLanguage: "Choisissez votre langue",
       tutorialTitle: "Instructions amicales",
       slides: [
@@ -650,7 +650,7 @@ export default function ChessilouV2() {
     },
     de: {
       landingTitle: "Chessilou - Universal Family Chess",
-      landingSubtitle: "Dein Schachbegleiter von Lobster Inc.",
+      landingSubtitle: "Deine spielerische Schachgesellschaft von Lobster Inc.",
       chooseLanguage: "Wähle deine Sprache",
       tutorialTitle: "Freundliche Anleitung",
       slides: [
@@ -1661,8 +1661,9 @@ export default function ChessilouV2() {
                 borderRadius: 28,
                 display: "grid",
                 placeItems: "center",
-                background: "radial-gradient(circle, rgba(59,130,246,0.28), rgba(59,130,246,0.04) 68%, transparent 100%)",
-                boxShadow: "0 0 36px rgba(59,130,246,0.45), 0 0 78px rgba(59,130,246,0.18)",
+                background: "linear-gradient(180deg, rgba(20,35,60,0.92), rgba(10,18,34,0.92))",
+                border: "1px solid rgba(96,165,250,0.32)",
+                boxShadow: "0 0 30px rgba(59,130,246,0.34), 0 0 78px rgba(59,130,246,0.14), inset 0 0 24px rgba(96,165,250,0.08)",
               }}
             >
               <img
@@ -1676,31 +1677,57 @@ export default function ChessilouV2() {
           <div style={{ display: "grid", gap: 10 }}>
             <h1 style={{ margin: 0, fontSize: "clamp(32px, 5vw, 48px)", fontWeight: 800 }}>{entry.landingTitle}</h1>
             <div style={{ color: "rgba(255,255,255,0.82)", fontSize: 18 }}>{entry.landingSubtitle}</div>
-            <div style={{ color: "#93c5fd", fontSize: 18, fontWeight: 700 }}>{entry.chooseLanguage}</div>
           </div>
 
-          <div style={{ maxWidth: 420, width: "100%", margin: "0 auto", display: "grid", gap: 14 }}>
-            {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
-              <button
-                key={languageKey}
-                onClick={() => goToTutorial(languageKey)}
+          <AnimatePresence>
+            {showLogoMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
                 style={{
-                  borderRadius: 18,
-                  border: "1px solid rgba(96,165,250,0.32)",
-                  background: "linear-gradient(180deg, rgba(17,24,39,0.95), rgba(15,23,42,0.95))",
-                  color: "#fff",
-                  padding: "18px 20px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  boxShadow: "0 0 16px rgba(59,130,246,0.16)",
+                  maxWidth: 420,
+                  width: "100%",
+                  margin: "0 auto",
+                  display: "grid",
+                  gap: 12,
+                  borderRadius: 20,
+                  padding: 16,
+                  background: "rgba(10,15,28,0.96)",
+                  border: "1px solid rgba(96,165,250,0.18)",
+                  boxShadow: "0 0 24px rgba(59,130,246,0.14)",
                 }}
               >
-                <span style={{ marginRight: 10 }}>{t.flags[languageKey]}</span>
-                {t.langNames[languageKey]}
-              </button>
-            ))}
-          </div>
+                <div style={{ color: "#93c5fd", fontSize: 18, fontWeight: 700 }}>{entry.chooseLanguage}</div>
+
+                <div style={{ display: "grid", gap: 14 }}>
+                  {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
+                    <button
+                      key={languageKey}
+                      onClick={() => {
+                        setShowLogoMenu(false);
+                        goToTutorial(languageKey);
+                      }}
+                      style={{
+                        borderRadius: 18,
+                        border: "1px solid rgba(96,165,250,0.32)",
+                        background: "linear-gradient(180deg, rgba(17,24,39,0.95), rgba(15,23,42,0.95))",
+                        color: "#fff",
+                        padding: "18px 20px",
+                        fontSize: 18,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        boxShadow: "0 0 16px rgba(59,130,246,0.16)",
+                      }}
+                    >
+                      <span style={{ marginRight: 10 }}>{t.flags[languageKey]}</span>
+                      {t.langNames[languageKey]}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>
