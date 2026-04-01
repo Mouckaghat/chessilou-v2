@@ -588,23 +588,86 @@ function getBookMove(game: Chess, difficulty: Difficulty) {
   return null;
 }
 
-function getLiliSpeech(lang: Lang, kind: "move" | "check" | "checkmate" | "thinking", san?: string) {
+function getPieceWord(lang: Lang, piece: string) {
+  const table = {
+    en: { p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" },
+    fr: { p: "Pion", n: "Cavalier", b: "Fou", r: "Tour", q: "Dame", k: "Roi" },
+    de: { p: "Bauer", n: "Springer", b: "Läufer", r: "Turm", q: "Dame", k: "König" },
+  } as const;
+  return table[lang][piece as keyof typeof table["en"]] ?? "Piece";
+}
+
+function moveToSpeech(lang: Lang, move: { san?: string; piece: string; from: string; to: string; captured?: string; promotion?: string }) {
+  const san = move.san ?? "";
+  if (san === "O-O") {
+    return lang === "fr" ? "Petit roque." : lang === "de" ? "Kurze Rochade." : "Castle kingside.";
+  }
+  if (san === "O-O-O") {
+    return lang === "fr" ? "Grand roque." : lang === "de" ? "Lange Rochade." : "Castle queenside.";
+  }
+
+  const pieceWord = getPieceWord(lang, move.piece);
+  const from = move.from.toLowerCase();
+  const to = move.to.toLowerCase();
+
+  if (move.captured) {
+    if (lang === "fr") return `${pieceWord} prend ${to}.`;
+    if (lang === "de") return `${pieceWord} schlägt ${to}.`;
+    return `${pieceWord} takes ${to}.`;
+  }
+
+  if (move.promotion) {
+    const promotionWord = getPieceWord(lang, move.promotion);
+    if (lang === "fr") return `${pieceWord} ${from} vers ${to}, promotion ${promotionWord}.`;
+    if (lang === "de") return `${pieceWord} ${from} nach ${to}, Umwandlung zur ${promotionWord}.`;
+    return `${pieceWord} ${from} to ${to}, promotion to ${promotionWord}.`;
+  }
+
+  if (lang === "fr") return `${pieceWord} ${from} vers ${to}.`;
+  if (lang === "de") return `${pieceWord} ${from} nach ${to}.`;
+  return `${pieceWord} ${from} to ${to}.`;
+}
+
+function getLiliComment(lang: Lang, difficulty: Difficulty) {
+  const casual = {
+    en: ["Alright.", "Nice and easy.", "Let me see."],
+    fr: ["Très bien.", "Doucement.", "Voyons voir."],
+    de: ["Na gut.", "Ganz ruhig.", "Mal sehen."],
+  } as const;
+  const club = {
+    en: ["Careful now.", "Interesting choice.", "That could get sharp."],
+    fr: ["Attention maintenant.", "Choix intéressant.", "Ça peut devenir tactique."],
+    de: ["Jetzt wird es heikel.", "Interessante Wahl.", "Das könnte scharf werden."],
+  } as const;
+  const strong = {
+    en: ["That leaves something hanging.", "You have weakened your king.", "Ambitious move."],
+    fr: ["Il y a quelque chose qui pend.", "Votre roi devient plus faible.", "Coup ambitieux."],
+    de: ["Da hängt etwas.", "Dein König steht schwächer.", "Ein ehrgeiziger Zug."],
+  } as const;
+
+  const roll = Math.random();
+  if (difficulty <= 2) return roll < 0.22 ? casual[lang][Math.floor(Math.random() * casual[lang].length)] : null;
+  if (difficulty === 3) return roll < 0.30 ? club[lang][Math.floor(Math.random() * club[lang].length)] : null;
+  return roll < 0.40 ? strong[lang][Math.floor(Math.random() * strong[lang].length)] : null;
+}
+
+function getLiliSpeech(lang: Lang, kind: "move" | "check" | "checkmate" | "thinking", spokenMove?: string) {
   if (lang === "fr") {
-    if (kind === "check") return "Lili dit : échec.";
-    if (kind === "checkmate") return "Lili dit : échec et mat.";
-    if (kind === "thinking") return "Lili réfléchit.";
-    return san ? `Lili joue ${san}.` : "Lili joue.";
+    if (kind === "check") return "Échec.";
+    if (kind === "checkmate") return "Échec et mat.";
+    if (kind === "thinking") return "Voyons voir.";
+    return spokenMove ?? "À toi.";
   }
   if (lang === "de") {
-    if (kind === "check") return "Lili sagt: Schach.";
-    if (kind === "checkmate") return "Lili sagt: Schachmatt.";
-    if (kind === "thinking") return "Lili denkt nach.";
-    return san ? `Lili spielt ${san}.` : "Lili spielt.";
+    if (kind === "check") return "Schach.";
+    if (kind === "checkmate") return "Schachmatt.";
+    if (kind === "thinking") return "Mal sehen.";
+    return spokenMove ?? "Du bist dran.";
   }
-  if (kind === "check") return "Lili says: check.";
-  if (kind === "checkmate") return "Lili says: checkmate.";
-  if (kind === "thinking") return "Lili is thinking.";
-  return san ? `Lili plays ${san}.` : "Lili plays.";
+  if (kind === "check") return "Check.";
+  if (kind === "checkmate") return "Checkmate.";
+  if (kind === "thinking") return "Let me think.";
+  return spokenMove ?? "Your move.";
 }
 
 export default function ChessilouV2() {
@@ -680,6 +743,7 @@ export default function ChessilouV2() {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [pendingAiFen, setPendingAiFen] = useState<string | null>(null);
   const [pendingAiSan, setPendingAiSan] = useState<string | null>(null);
+  const [pendingAiSpeech, setPendingAiSpeech] = useState<string | null>(null);
 
   const [boardSize, setBoardSize] = useState(760);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -688,16 +752,28 @@ export default function ChessilouV2() {
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
 
-  function speakLili(kind: "move" | "check" | "checkmate" | "thinking", san?: string) {
+  function speakLili(kind: "move" | "check" | "checkmate" | "thinking", spokenMove?: string, followUp?: string | null) {
+    if (setup.controlMode !== "voice") return;
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(getLiliSpeech(lang, kind, san));
-      utterance.lang = getVoiceLang(lang);
-      utterance.rate = 1;
-      utterance.pitch = 0.95;
-      speechRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+      const primary = new SpeechSynthesisUtterance(getLiliSpeech(lang, kind, spokenMove));
+      primary.lang = getVoiceLang(lang);
+      primary.rate = 0.98;
+      primary.pitch = 0.96;
+      speechRef.current = primary;
+      if (followUp) {
+        primary.onend = () => {
+          try {
+            const second = new SpeechSynthesisUtterance(followUp);
+            second.lang = getVoiceLang(lang);
+            second.rate = 0.98;
+            second.pitch = 0.96;
+            window.speechSynthesis.speak(second);
+          } catch {}
+        };
+      }
+      window.speechSynthesis.speak(primary);
     } catch {}
   }
 
@@ -761,18 +837,19 @@ export default function ChessilouV2() {
         setStatus(t.draw);
       } else if (finalGame.inCheck()) {
         setStatus(`${ui.liliPlayed}: ${pendingAiSan ?? ""} • check`);
-        speakLili("check");
+        speakLili("move", pendingAiSpeech ?? undefined, getLiliSpeech(lang, "check"));
       } else {
         setStatus(`${ui.liliPlayed}: ${pendingAiSan ?? ""}`);
-        speakLili("move", pendingAiSan ?? undefined);
+        speakLili("move", pendingAiSpeech ?? undefined, getLiliComment(lang, difficulty));
       }
 
       setPendingAiFen(null);
       setPendingAiSan(null);
+      setPendingAiSpeech(null);
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, difficulty, ui.youCheckmated, ui.liliPlayed, t.draw, lang]);
+  }, [isAiThinking, pendingAiFen, pendingAiSan, pendingAiSpeech, setup.gameMode, difficulty, ui.youCheckmated, ui.liliPlayed, t.draw, lang, setup.controlMode]);
 
   const winChances = useMemo(() => getWinChances(game), [game]);
 
@@ -831,6 +908,7 @@ export default function ChessilouV2() {
     setIsAiThinking(false);
     setPendingAiFen(null);
     setPendingAiSan(null);
+    setPendingAiSpeech(null);
     setShowAdvancedOptions(false);
     setShowLogoMenu(false);
     setTutorialIndex(0);
@@ -870,6 +948,7 @@ export default function ChessilouV2() {
     setIsAiThinking(false);
     setPendingAiFen(null);
     setPendingAiSan(null);
+    setPendingAiSpeech(null);
     stopVoiceRecognition();
   }
 
@@ -885,6 +964,7 @@ export default function ChessilouV2() {
     setIsAiThinking(false);
     setPendingAiFen(null);
     setPendingAiSan(null);
+    setPendingAiSpeech(null);
   }
 
   function finalizeHumanMove(nextGame: Chess, playedSan: string, moveColor: "w" | "b") {
@@ -928,6 +1008,7 @@ export default function ChessilouV2() {
     setIsAiThinking(true);
     setPendingAiFen(aiGame.fen());
     setPendingAiSan(aiMove.san);
+    setPendingAiSpeech(moveToSpeech(lang, aiMove));
 
     if (justPlayedSan) {
       setStatus(`${t.movePlayed}: ${justPlayedSan} • ${ui.aiThinking}`);
@@ -1105,6 +1186,7 @@ export default function ChessilouV2() {
     setIsAiThinking(false);
     setPendingAiFen(null);
     setPendingAiSan(null);
+    setPendingAiSpeech(null);
 
     if (setup.controlMode === "quiet" && next.history().length === 0) {
       setTutorialExample(getRandomTutorialExample());
@@ -1117,6 +1199,7 @@ export default function ChessilouV2() {
     setIsAiThinking(false);
     setPendingAiFen(null);
     setPendingAiSan(null);
+    setPendingAiSpeech(null);
     clearSelection();
     setStatus(ui.youResign);
   }
