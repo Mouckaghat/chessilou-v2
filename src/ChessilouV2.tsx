@@ -748,6 +748,9 @@ export default function ChessilouV2() {
   const [boardSize, setBoardSize] = useState(760);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
+  const playStageMaxWidth = clamp(boardSize + 180, 760, 1080);
+  const boardShellWidth = clamp(boardSize + 52, 380, 980);
+
   const recognitionRef = useRef<any>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -1315,7 +1318,7 @@ export default function ChessilouV2() {
   }
 
   const topImmersiveBar = (
-    <div style={{ display: "grid", gap: 16, marginBottom: 16 }}>
+    <div style={{ display: "grid", gap: 16, marginBottom: 16, width: "100%" }}>
       <div
         style={{
           display: "grid",
@@ -1643,76 +1646,84 @@ export default function ChessilouV2() {
 
   const boardView = (
     <Panel title={t.board}>
-      <div
-        style={{
-          borderRadius: 20,
-          overflow: "visible",
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "#000",
-          padding: 12,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "24px minmax(0, 1fr)",
-            gap: 8,
-            alignItems: "stretch",
             width: "100%",
+            maxWidth: boardShellWidth,
+            borderRadius: 24,
+            overflow: "hidden",
+            border: "1px solid rgba(95, 175, 255, 0.18)",
+            background: "linear-gradient(180deg, rgba(7,15,24,0.98), rgba(4,8,14,0.98))",
+            boxShadow: "0 0 26px rgba(16, 156, 255, 0.08)",
+            padding: 14,
           }}
         >
           <div
             style={{
               display: "grid",
-              gridTemplateRows: "repeat(8, 1fr)",
-              alignItems: "center",
-              textAlign: "center",
-              color: "rgba(255,255,255,0.70)",
-              fontSize: 14,
-              fontWeight: 600,
+              gridTemplateColumns: "24px minmax(0, 1fr)",
+              gap: 8,
+              alignItems: "stretch",
+              width: "100%",
             }}
           >
-            {RANKS.map((rank) => (
-              <div key={rank}>{rank}</div>
-            ))}
-          </div>
-
-          <div style={{ minWidth: 0 }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-                width: "100%",
-                maxWidth: boardSize,
-                aspectRatio: "1 / 1",
-                border: "1px solid rgba(255,255,255,0.10)",
-                margin: "0 auto",
-              }}
-            >
-              {RANKS.flatMap((rank) =>
-                FILES.map((file) => {
-                  const square = `${file}${rank}`;
-                  return renderSquare(square);
-                })
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-                width: "100%",
-                maxWidth: boardSize,
-                margin: "8px auto 0 auto",
+                gridTemplateRows: "repeat(8, 1fr)",
+                alignItems: "center",
+                textAlign: "center",
                 color: "rgba(255,255,255,0.70)",
                 fontSize: 14,
                 fontWeight: 600,
-                textAlign: "center",
               }}
             >
-              {FILES.map((file) => (
-                <div key={file}>{file}</div>
+              {RANKS.map((rank) => (
+                <div key={rank}>{rank}</div>
               ))}
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+                  width: "100%",
+                  maxWidth: boardSize,
+                  aspectRatio: "1 / 1",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  border: "1px solid rgba(95, 175, 255, 0.14)",
+                  margin: "0 auto",
+                  background: "#0a1118",
+                }}
+              >
+                {RANKS.flatMap((rank) =>
+                  FILES.map((file) => {
+                    const square = `${file}${rank}`;
+                    return renderSquare(square);
+                  })
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+                  width: "100%",
+                  maxWidth: boardSize,
+                  margin: "8px auto 0 auto",
+                  color: "rgba(255,255,255,0.70)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  textAlign: "center",
+                }}
+              >
+                {FILES.map((file) => (
+                  <div key={file}>{file}</div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1721,6 +1732,7 @@ export default function ChessilouV2() {
       {helperPanel}
     </Panel>
   );
+
 
   const landingView = (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -2190,7 +2202,7 @@ export default function ChessilouV2() {
 
   const playView = (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      <div style={{ display: "grid", gap: 20 }}>
+      <div style={{ width: "100%", maxWidth: playStageMaxWidth, margin: "0 auto", display: "grid", gap: 20 }}>
         {topImmersiveBar}
         {boardView}
         {minimalControls}
@@ -2322,7 +2334,7 @@ export default function ChessilouV2() {
         {screen === "setup" && setupView}
         {screen === "play" && playView}
 
-        <div style={{ marginTop: 24, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+        <div className="app-footer" style={{ marginTop: 24, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
           {t.allRightsReserved}
         </div>
       </div>
