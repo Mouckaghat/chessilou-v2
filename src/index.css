@@ -88,3 +88,18 @@ img {
   display: block;
   max-width: 100%;
 }
+
+.app-footer {
+  margin-top: 32px;
+  padding-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  opacity: 0.75;
+  letter-spacing: 0.02em;
+  border-top: 1px solid rgba(120, 200, 255, 0.12);
+}
