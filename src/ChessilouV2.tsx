@@ -23,7 +23,6 @@ import {
   type OpponentMode,
   type ControlMode,
 } from "./data/translations";
-import BrandHeader from "./components/BrandHeader";
 import Panel from "./components/ui/Panel";
 import ActionButton from "./components/ui/ActionButton";
 
@@ -33,10 +32,6 @@ declare global {
     webkitSpeechRecognition?: any;
   }
 }
-
-const BRAND = {
-  name: "Chessilou",
-};
 
 type Difficulty = 1 | 2 | 3 | 4 | 5;
 type Screen = "landing" | "tutorial" | "setup" | "play";
@@ -142,11 +137,11 @@ function getUiText(lang: Lang) {
       modeProtectHelp: "Prototype : survivez et protégez votre roi.",
       modeBattleHelp: "Prototype : bataille déséquilibrée et plus sauvage.",
       difficultyLabel: "Difficulté",
-      d1: "Débutant",
-      d2: "Hustler de rue",
-      d3: "Compétition",
-      d4: "Bobby Fischer",
-      d5: "Judit Polgár",
+      d1: "900 ELO • Débutant",
+      d2: "1200 ELO • Hustler de rue",
+      d3: "1500 ELO • Compétition",
+      d4: "1800 ELO • Bobby Fischer",
+      d5: "2100 ELO • Judit Polgár",
       goodbye: "Au revoir",
     };
   }
@@ -195,11 +190,11 @@ function getUiText(lang: Lang) {
       modeProtectHelp: "Prototyp: Überleben und den König schützen.",
       modeBattleHelp: "Prototyp: wildere, ungleichere Schlacht.",
       difficultyLabel: "Schwierigkeit",
-      d1: "Anfänger",
-      d2: "Straßen-Hustler",
-      d3: "Wettkampf",
-      d4: "Bobby Fischer",
-      d5: "Judit Polgár",
+      d1: "900 ELO • Anfänger",
+      d2: "1200 ELO • Straßen-Hustler",
+      d3: "1500 ELO • Wettkampf",
+      d4: "1800 ELO • Bobby Fischer",
+      d5: "2100 ELO • Judit Polgár",
       goodbye: "Auf Wiedersehen",
     };
   }
@@ -247,11 +242,11 @@ function getUiText(lang: Lang) {
     modeProtectHelp: "Prototype: survive and protect your king.",
     modeBattleHelp: "Prototype: wilder, more unbalanced battle.",
     difficultyLabel: "Difficulty",
-    d1: "Newbie",
-    d2: "Street Hustler",
-    d3: "Competition",
-    d4: "Bobby Fischer",
-    d5: "Judit Polgár",
+    d1: "900 ELO • Newbie",
+    d2: "1200 ELO • Street Hustler",
+    d3: "1500 ELO • Competition",
+    d4: "1800 ELO • Bobby Fischer",
+    d5: "2100 ELO • Judit Polgár",
     goodbye: "Good bye",
   };
 }
@@ -554,6 +549,64 @@ function parseVoiceMove(text: string, game: Chess) {
   return null;
 }
 
+
+const OPENING_BOOK: string[][] = [
+  ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6"],
+  ["e2e4", "c7c5", "g1f3", "d7d6", "d2d4", "c5d4"],
+  ["e2e4", "e7e5", "g1f3", "b8c6", "f1b5", "a7a6"],
+  ["d2d4", "d7d5", "c2c4", "e7e6", "b1c3", "g8f6"],
+  ["d2d4", "g8f6", "c2c4", "g7g6", "b1c3", "f8g7"],
+  ["c2c4", "e7e5", "b1c3", "g8f6", "g2g3", "d7d5"],
+];
+
+function moveToUci(move: { from: string; to: string; promotion?: string }) {
+  return `${move.from}${move.to}${move.promotion ?? ""}`;
+}
+
+function getBookMove(game: Chess, difficulty: Difficulty) {
+  if (difficulty < 3) return null;
+  const history = game.history({ verbose: true }).map((m: any) => moveToUci(m));
+  for (const line of OPENING_BOOK) {
+    if (history.length >= line.length) continue;
+    const prefixMatches = history.every((played, index) => line[index] === played);
+    if (!prefixMatches) continue;
+    const nextUci = line[history.length];
+    if (!nextUci) continue;
+    const candidate = {
+      from: nextUci.slice(0, 2),
+      to: nextUci.slice(2, 4),
+      promotion: nextUci.slice(4) || undefined,
+    };
+    const legal = game.moves({ verbose: true }).find(
+      (m: any) =>
+        m.from === candidate.from &&
+        m.to === candidate.to &&
+        (candidate.promotion ? m.promotion === candidate.promotion : true)
+    );
+    if (legal) return legal;
+  }
+  return null;
+}
+
+function getLiliSpeech(lang: Lang, kind: "move" | "check" | "checkmate" | "thinking", san?: string) {
+  if (lang === "fr") {
+    if (kind === "check") return "Lili dit : échec.";
+    if (kind === "checkmate") return "Lili dit : échec et mat.";
+    if (kind === "thinking") return "Lili réfléchit.";
+    return san ? `Lili joue ${san}.` : "Lili joue.";
+  }
+  if (lang === "de") {
+    if (kind === "check") return "Lili sagt: Schach.";
+    if (kind === "checkmate") return "Lili sagt: Schachmatt.";
+    if (kind === "thinking") return "Lili denkt nach.";
+    return san ? `Lili spielt ${san}.` : "Lili spielt.";
+  }
+  if (kind === "check") return "Lili says: check.";
+  if (kind === "checkmate") return "Lili says: checkmate.";
+  if (kind === "thinking") return "Lili is thinking.";
+  return san ? `Lili plays ${san}.` : "Lili plays.";
+}
+
 export default function ChessilouV2() {
   const [screen, setScreen] = useState<Screen>("landing");
   const [tutorialIndex, setTutorialIndex] = useState(0);
@@ -577,7 +630,7 @@ export default function ChessilouV2() {
       slides: [
         { icon: "♟️", title: "Welcome to Chessilou", body: "Pick your language, learn the basics, then enter setup before the real battle begins." },
         { icon: "🖐️", title: "Move your pieces", body: "Tap a piece, then tap the target square. You can also drag and drop, or use voice mode." },
-        { icon: "🔥", title: "Lili got stronger", body: "Levels 4 and 5 now hit harder. Mistakes get punished much faster than before." },
+        { icon: "🔥", title: "Lili got stronger", body: "Lili now uses an opening book, ELO-style difficulty, and voice feedback. Levels 4 and 5 punish mistakes much faster than before." },
         { icon: "🚀", title: "Ready?", body: "After this short guide, choose your mode, difficulty, and start the game." },
       ],
       next: "Next", back: "Back", skip: "Skip", startSetup: "Go to setup", goodbye: "Good bye",
@@ -590,7 +643,7 @@ export default function ChessilouV2() {
       slides: [
         { icon: "♟️", title: "Bienvenue sur Chessilou", body: "Choisissez votre langue, découvrez les bases, puis entrez dans la configuration avant la vraie bataille." },
         { icon: "🖐️", title: "Déplacez vos pièces", body: "Touchez une pièce puis la case cible. Vous pouvez aussi glisser-déposer ou utiliser la voix." },
-        { icon: "🔥", title: "Lili est plus forte", body: "Les niveaux 4 et 5 sont maintenant bien plus sévères. Les erreurs sont punies plus vite." },
+        { icon: "🔥", title: "Lili est plus forte", body: "Lili utilise maintenant un répertoire d’ouvertures, une difficulté style ELO et un retour vocal. Les niveaux 4 et 5 punissent bien plus vite." },
         { icon: "🚀", title: "Prêt ?", body: "Après ce mini-guide, choisissez votre mode, votre niveau, puis lancez la partie." },
       ],
       next: "Suivant", back: "Retour", skip: "Passer", startSetup: "Aller à la configuration", goodbye: "Au revoir",
@@ -603,7 +656,7 @@ export default function ChessilouV2() {
       slides: [
         { icon: "♟️", title: "Willkommen bei Chessilou", body: "Wähle deine Sprache, lerne die Grundlagen und gehe dann ins Setup vor dem echten Duell." },
         { icon: "🖐️", title: "Ziehe deine Figuren", body: "Tippe auf eine Figur und dann auf das Zielfeld. Du kannst auch Drag-and-Drop oder die Stimme nutzen." },
-        { icon: "🔥", title: "Lili ist stärker geworden", body: "Die Levels 4 und 5 bestrafen Fehler jetzt deutlich härter." },
+        { icon: "🔥", title: "Lili ist stärker geworden", body: "Lili nutzt jetzt ein Eröffnungsbuch, ELO-ähnliche Stärke und Sprachfeedback. Die Levels 4 und 5 bestrafen Fehler deutlich härter." },
         { icon: "🚀", title: "Bereit?", body: "Nach dieser kurzen Anleitung wählst du Modus und Schwierigkeit und startest dann das Spiel." },
       ],
       next: "Weiter", back: "Zurück", skip: "Überspringen", startSetup: "Zum Setup", goodbye: "Auf Wiedersehen",
@@ -617,7 +670,7 @@ export default function ChessilouV2() {
   const [status, setStatus] = useState<string>(t.welcome);
   const [lastVoiceText, setLastVoiceText] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
-  const [showBrandInfo, setShowBrandInfo] = useState(false);
+  const [showLogoMenu, setShowLogoMenu] = useState(false);
   const [tutorialExample, setTutorialExample] = useState<TutorialExample | null>(
     getRandomTutorialExample()
   );
@@ -632,6 +685,21 @@ export default function ChessilouV2() {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const recognitionRef = useRef<any>(null);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+
+  function speakLili(kind: "move" | "check" | "checkmate" | "thinking", san?: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(getLiliSpeech(lang, kind, san));
+      utterance.lang = getVoiceLang(lang);
+      utterance.rate = 1;
+      utterance.pitch = 0.95;
+      speechRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    } catch {}
+  }
 
   useEffect(() => {
     if (setup.opponentMode === "local" && setup.gameMode !== "classic") {
@@ -670,6 +738,9 @@ export default function ChessilouV2() {
           recognitionRef.current.stop();
         } catch {}
       }
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {}
     };
   }, []);
 
@@ -685,10 +756,15 @@ export default function ChessilouV2() {
 
       if (finalGame.isCheckmate()) {
         setStatus(ui.youCheckmated);
+        speakLili("checkmate");
       } else if (finalGame.isDraw()) {
         setStatus(t.draw);
+      } else if (finalGame.inCheck()) {
+        setStatus(`${ui.liliPlayed}: ${pendingAiSan ?? ""} • check`);
+        speakLili("check");
       } else {
         setStatus(`${ui.liliPlayed}: ${pendingAiSan ?? ""}`);
+        speakLili("move", pendingAiSan ?? undefined);
       }
 
       setPendingAiFen(null);
@@ -696,7 +772,7 @@ export default function ChessilouV2() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, difficulty, ui.youCheckmated, ui.liliPlayed, t.draw]);
+  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, difficulty, ui.youCheckmated, ui.liliPlayed, t.draw, lang]);
 
   const winChances = useMemo(() => getWinChances(game), [game]);
 
@@ -743,6 +819,9 @@ export default function ChessilouV2() {
 
   function goToLanding() {
     stopVoiceRecognition();
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {}
     setLastVoiceText("");
     setGame(new Chess());
     clearSelection();
@@ -753,7 +832,7 @@ export default function ChessilouV2() {
     setPendingAiFen(null);
     setPendingAiSan(null);
     setShowAdvancedOptions(false);
-    setShowBrandInfo(false);
+    setShowLogoMenu(false);
     setTutorialIndex(0);
     setScreen("landing");
   }
@@ -840,7 +919,7 @@ export default function ChessilouV2() {
       return nextGame;
     }
 
-    const aiMove = getBestMove(nextGame, difficulty);
+    const aiMove = getBookMove(nextGame, difficulty) ?? getBestMove(nextGame, difficulty);
     if (!aiMove) return nextGame;
 
     const aiGame = new Chess(nextGame.fen());
@@ -1571,7 +1650,7 @@ export default function ChessilouV2() {
       >
         <div style={{ display: "grid", gap: 22, textAlign: "center", width: "100%", maxWidth: 760 }}>
           <button
-            onClick={() => setShowBrandInfo((v) => !v)}
+            onClick={() => setShowLogoMenu((v) => !v)}
             style={{ background: "transparent", border: "none", cursor: "pointer", justifySelf: "center" }}
           >
             <div
@@ -1579,7 +1658,7 @@ export default function ChessilouV2() {
                 width: 150,
                 height: 150,
                 margin: "0 auto",
-                borderRadius: "999px",
+                borderRadius: 28,
                 display: "grid",
                 placeItems: "center",
                 background: "radial-gradient(circle, rgba(59,130,246,0.28), rgba(59,130,246,0.04) 68%, transparent 100%)",
@@ -1796,15 +1875,15 @@ export default function ChessilouV2() {
                       >
                         {lang === "fr"
                           ? isLevel4
-                            ? "⚠️ Niveau sérieux. Lili commence vraiment à punir les erreurs."
-                            : "🔥 Attention. Réservé aux courageux. Pas pour les âmes sensibles."
+                            ? "⚠️ Zone 1800 ELO. Lili commence vraiment à punir les erreurs."
+                            : "🔥 Zone 2100 ELO. Répertoire d’ouvertures actif. Pas pour les âmes sensibles."
                           : lang === "de"
                           ? isLevel4
-                            ? "⚠️ Ernstes Niveau. Lili bestraft Fehler jetzt deutlich härter."
-                            : "🔥 Warnung. Nur für Mutige. Nichts für schwache Nerven."
+                            ? "⚠️ 1800-ELO-Zone. Lili bestraft Fehler jetzt deutlich härter."
+                            : "🔥 2100-ELO-Zone. Eröffnungsbuch aktiv. Nichts für schwache Nerven."
                           : isLevel4
-                          ? "⚠️ Serious level. Lili starts punishing mistakes for real."
-                          : "🔥 Warning. For the brave only. Not for the faint-hearted."}
+                          ? "⚠️ 1800 ELO zone. Lili starts punishing mistakes for real."
+                          : "🔥 2100 ELO zone. Opening book active. Not for the faint-hearted."}
                       </div>
                     )}
                   </div>
@@ -1920,24 +1999,109 @@ export default function ChessilouV2() {
     >
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
         {screen !== "landing" && (
-          <BrandHeader
-            appName={BRAND.name}
-            lobsterSrc={lobster}
-            showBrandInfo={showBrandInfo}
-            onToggle={() => setShowBrandInfo((v) => !v)}
-            isVoiceLive={isListening}
-            texts={{
-              brandShort: "Chessilou",
-              tagline: "by Lobster Inc. Voice Chess Family",
-              dedication: "Happy Birthday Sandra — welcome to our chess family.",
-              brandClickHint: t.brandClickHint,
-              brandTitle: t.brandTitle,
-              brandSubtitle: t.brandSubtitle,
-              brandBody1: t.brandBody1,
-              brandBody2: t.brandBody2,
-              brandBody3: t.brandBody3,
-            }}
-          />
+          <div style={{ display: "grid", gap: 14, marginBottom: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+                border: "1px solid rgba(96,165,250,0.18)",
+                borderRadius: 24,
+                padding: "14px 18px",
+                background: "linear-gradient(180deg, rgba(10,15,28,0.95), rgba(7,10,20,0.95))",
+                boxShadow: "0 0 26px rgba(59,130,246,0.08)",
+              }}
+            >
+              <button
+                onClick={() => setShowLogoMenu((v) => !v)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  background: "transparent",
+                  border: "none",
+                  color: "#fff",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 18,
+                    display: "grid",
+                    placeItems: "center",
+                    background: "radial-gradient(circle, rgba(59,130,246,0.28), rgba(59,130,246,0.08) 68%, transparent 100%)",
+                    boxShadow: "0 0 20px rgba(59,130,246,0.26)",
+                  }}
+                >
+                  <img
+                    src={lobster}
+                    alt="Lobster Inc."
+                    style={{
+                      width: 42,
+                      height: 42,
+                      objectFit: "contain",
+                      filter: "drop-shadow(0 0 12px rgba(96,165,250,0.55))",
+                    }}
+                  />
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>Chessilou</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.68)" }}>
+                    by Lobster Inc. • click logo for language
+                  </div>
+                </div>
+              </button>
+
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.70)", textAlign: "right" }}>
+                <div>{setup.opponentMode === "ai" ? ui.versusAi : ui.twoPlayers}</div>
+                <div>{ui.difficultyLabel}: {difficultyName}</div>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {showLogoMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  style={{
+                    border: "1px solid rgba(96,165,250,0.18)",
+                    borderRadius: 20,
+                    padding: 16,
+                    background: "rgba(10,15,28,0.96)",
+                    display: "grid",
+                    gap: 12,
+                    maxWidth: 420,
+                  }}
+                >
+                  <div style={{ color: "#93c5fd", fontWeight: 700 }}>{entry.chooseLanguage}</div>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
+                      <ActionButton
+                        key={languageKey}
+                        onClick={() => {
+                          setLang(languageKey);
+                          setShowLogoMenu(false);
+                        }}
+                        active={lang === languageKey}
+                        fullWidth
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                          <span style={{ fontSize: 22 }}>{t.flags[languageKey]}</span>
+                          <span>{t.langNames[languageKey]}</span>
+                        </div>
+                      </ActionButton>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
 
         {screen === "landing" && landingView}
