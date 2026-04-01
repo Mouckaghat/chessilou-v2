@@ -1677,6 +1677,7 @@ export default function ChessilouV2() {
           <div style={{ display: "grid", gap: 10 }}>
             <h1 style={{ margin: 0, fontSize: "clamp(32px, 5vw, 48px)", fontWeight: 800 }}>{entry.landingTitle}</h1>
             <div style={{ color: "rgba(255,255,255,0.82)", fontSize: 18 }}>{entry.landingSubtitle}</div>
+            <div style={{ color: "#93c5fd", fontSize: 15, fontWeight: 700 }}>Happy Birthday Sandra — welcome to our chess family.</div>
           </div>
 
           <AnimatePresence>
@@ -1969,16 +1970,118 @@ export default function ChessilouV2() {
           </div>
         </Panel>
 
-        <Panel title={t.languageLabel}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, maxWidth: 420, width: "100%", margin: "0 auto" }}>
-            {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
-              <ActionButton key={languageKey} onClick={() => setLang(languageKey)} active={lang === languageKey} fullWidth>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{t.flags[languageKey]}</span>
-                  <span>{t.langNames[languageKey]}</span>
+        <Panel
+          title={
+            lang === "fr"
+              ? "Guide ELO & légendes"
+              : lang === "de"
+              ? "ELO-Leitfaden & Legenden"
+              : "ELO guide & legends"
+          }
+        >
+          <div
+            style={{
+              display: "grid",
+              gap: 14,
+              maxWidth: 760,
+              width: "100%",
+              margin: "0 auto",
+            }}
+          >
+            <div
+              style={{
+                borderRadius: 18,
+                border: "1px solid rgba(255,255,255,0.10)",
+                padding: 16,
+                lineHeight: 1.7,
+                color: "rgba(255,255,255,0.84)",
+                fontSize: 14,
+              }}
+            >
+              {lang === "fr"
+                ? "L’ELO est un système de classement aux échecs. Plus le nombre est élevé, plus le niveau attendu est fort. Ici, cela donne une idée simple de la force de Lili."
+                : lang === "de"
+                ? "ELO ist ein Schach-Bewertungssystem. Je höher die Zahl, desto stärker ist das erwartete Spielniveau. Hier gibt es dir eine einfache Orientierung, wie stark Lili ungefähr spielt."
+                : "ELO is a chess rating system. The higher the number, the stronger the expected level of play. Here, it gives players a simple feel for how strong Lili is."}
+            </div>
+
+            <div style={{ display: "grid", gap: 10 }}>
+              {[
+                {
+                  level: "900 ELO",
+                  titleEn: "Newbie",
+                  titleFr: "Débutant",
+                  titleDe: "Anfänger",
+                  bodyEn: "Learns the basics, misses tactics, and is ideal for first games.",
+                  bodyFr: "Apprend les bases, rate souvent les tactiques, parfait pour débuter.",
+                  bodyDe: "Lernt noch die Grundlagen, übersieht Taktiken und ist ideal für den Einstieg.",
+                },
+                {
+                  level: "1200 ELO",
+                  titleEn: "Street Hustler",
+                  titleFr: "Hustler de rue",
+                  titleDe: "Straßen-Hustler",
+                  bodyEn: "More alert, sees simple traps, and punishes very loose moves.",
+                  bodyFr: "Plus attentif, voit les pièges simples et punit les coups trop relâchés.",
+                  bodyDe: "Wachsamer, erkennt einfache Fallen und bestraft sehr lockere Züge.",
+                },
+                {
+                  level: "1500 ELO",
+                  titleEn: "Competition",
+                  titleFr: "Compétition",
+                  titleDe: "Wettkampf",
+                  bodyEn: "A solid club-player feel. Better development, cleaner plans, fewer gifts.",
+                  bodyFr: "Un vrai parfum de joueur de club. Meilleur développement, plans plus propres, moins de cadeaux.",
+                  bodyDe: "Fühlt sich wie ein solider Vereinsspieler an. Bessere Entwicklung, klarere Pläne, weniger Geschenke.",
+                },
+                {
+                  level: "1800 ELO",
+                  titleEn: "Bobby Fischer",
+                  titleFr: "Bobby Fischer",
+                  titleDe: "Bobby Fischer",
+                  bodyEn: "Named after the legendary American world champion, famous for precision, willpower, and ruthless attacking clarity.",
+                  bodyFr: "Nommé d’après le légendaire champion du monde américain, célèbre pour sa précision, sa volonté et sa clarté offensive impitoyable.",
+                  bodyDe: "Benannt nach dem legendären amerikanischen Weltmeister, berühmt für Präzision, Willenskraft und gnadenlose Angriffsklarheit.",
+                },
+                {
+                  level: "2100 ELO",
+                  titleEn: "Judit Polgár",
+                  titleFr: "Judit Polgár",
+                  titleDe: "Judit Polgár",
+                  bodyEn: "Inspired by Judit Polgár, one of the greatest attacking players ever, famous for fearless, creative, elite-level chess.",
+                  bodyFr: "Inspiré par Judit Polgár, l’une des plus grandes joueuses d’attaque de l’histoire, célèbre pour un jeu créatif, audacieux et de niveau élite.",
+                  bodyDe: "Inspiriert von Judit Polgár, einer der größten Angriffsspielerinnen überhaupt, berühmt für furchtloses, kreatives Schach auf Elite-Niveau.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.level}
+                  style={{
+                    borderRadius: 18,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    padding: 14,
+                    background:
+                      item.level === "1800 ELO"
+                        ? "rgba(250, 204, 21, 0.06)"
+                        : item.level === "2100 ELO"
+                        ? "rgba(239, 68, 68, 0.06)"
+                        : "transparent",
+                    boxShadow:
+                      item.level === "1800 ELO"
+                        ? "0 0 14px rgba(250, 204, 21, 0.08)"
+                        : item.level === "2100 ELO"
+                        ? "0 0 14px rgba(239, 68, 68, 0.08)"
+                        : "none",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                    {item.level} • {lang === "fr" ? item.titleFr : lang === "de" ? item.titleDe : item.titleEn}
+                  </div>
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.80)", lineHeight: 1.65 }}>
+                    {lang === "fr" ? item.bodyFr : lang === "de" ? item.bodyDe : item.bodyEn}
+                  </div>
                 </div>
-              </ActionButton>
-            ))}
+              ))}
+            </div>
           </div>
         </Panel>
 
