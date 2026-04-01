@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Mic,
   MicOff,
+  LogOut,
 } from "lucide-react";
 import lobster from "./assets/blue_lobster.png";
 import {
@@ -38,6 +39,7 @@ const BRAND = {
 };
 
 type Difficulty = 1 | 2 | 3 | 4 | 5;
+type Screen = "landing" | "tutorial" | "setup" | "play";
 
 type SetupState = {
   gameMode: GameMode;
@@ -145,6 +147,7 @@ function getUiText(lang: Lang) {
       d3: "Compétition",
       d4: "Bobby Fischer",
       d5: "Judit Polgár",
+      goodbye: "Au revoir",
     };
   }
 
@@ -197,6 +200,7 @@ function getUiText(lang: Lang) {
       d3: "Wettkampf",
       d4: "Bobby Fischer",
       d5: "Judit Polgár",
+      goodbye: "Auf Wiedersehen",
     };
   }
 
@@ -248,6 +252,7 @@ function getUiText(lang: Lang) {
     d3: "Competition",
     d4: "Bobby Fischer",
     d5: "Judit Polgár",
+    goodbye: "Good bye",
   };
 }
 
@@ -257,21 +262,17 @@ function getWinnerLabel(lang: Lang, color: "w" | "b") {
   return color === "w" ? "White" : "Black";
 }
 
-function getAiDelay(gameMode: GameMode) {
-  switch (gameMode) {
-    case "classic":
-      return 2000;
-    case "learn":
-      return 1400;
-    case "mate5":
-      return 1800;
-    case "protect":
-      return 2000;
-    case "battle":
-      return 2200;
-    default:
-      return 1800;
-  }
+function getAiDelay(gameMode: GameMode, difficulty: Difficulty) {
+  const base =
+    gameMode === "learn" ? 1200 :
+    gameMode === "classic" ? 1500 :
+    gameMode === "mate5" ? 1700 :
+    gameMode === "protect" ? 1800 :
+    1900;
+
+  if (difficulty >= 5) return base + 500;
+  if (difficulty >= 4) return base + 250;
+  return base;
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -280,7 +281,7 @@ function clamp(n: number, min: number, max: number) {
 
 function evaluatePosition(game: Chess) {
   if (game.isCheckmate()) {
-    return game.turn() === "w" ? -999 : 999;
+    return game.turn() === "w" ? -99999 : 99999;
   }
 
   if (game.isDraw() || game.isStalemate() || game.isInsufficientMaterial()) {
@@ -288,66 +289,116 @@ function evaluatePosition(game: Chess) {
   }
 
   const pieceValues: Record<string, number> = {
-    p: 1,
-    n: 3,
-    b: 3.2,
-    r: 5,
-    q: 9,
+    p: 100,
+    n: 320,
+    b: 330,
+    r: 500,
+    q: 900,
     k: 0,
   };
 
   let score = 0;
   const board = game.board();
-
-  for (const row of board) {
-    for (const piece of row) {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = board[r][c];
       if (!piece) continue;
       const value = pieceValues[piece.type] ?? 0;
       score += piece.color === "w" ? value : -value;
+
+      const centerDist = Math.abs(3.5 - c) + Math.abs(3.5 - r);
+      const centerBonus = Math.round((4 - centerDist) * 6);
+      if (piece.type !== "k") score += piece.color === "w" ? centerBonus : -centerBonus;
+
+      if (piece.type === "p") {
+        const advance = piece.color === "w" ? 6 - r : r - 1;
+        score += piece.color === "w" ? advance * 4 : -advance * 4;
+      }
     }
   }
 
-  const mobility = game.moves().length * 0.03;
-  score += game.turn() === "w" ? mobility : -mobility;
+  const mobility = game.moves().length;
+  score += game.turn() === "w" ? mobility * 2 : -mobility * 2;
 
   if (game.inCheck()) {
-    score += game.turn() === "w" ? -0.4 : 0.4;
+    score += game.turn() === "w" ? -35 : 35;
   }
 
   return score;
+}
+
+function minimax(game: Chess, depth: number, alpha: number, beta: number, maximizing: boolean): number {
+  if (depth === 0 || game.isGameOver()) {
+    return evaluatePosition(game);
+  }
+
+  const moves = game.moves({ verbose: true });
+  if (!moves.length) return evaluatePosition(game);
+
+  const orderedMoves = moves.sort((a, b) => {
+    const scoreMove = (m: any) => {
+      let s = 0;
+      if (m.captured) s += 10;
+      if (m.promotion) s += 20;
+      if (["d4", "d5", "e4", "e5", "c4", "c5", "f4", "f5"].includes(m.to)) s += 3;
+      return s;
+    };
+    return scoreMove(b) - scoreMove(a);
+  });
+
+  if (maximizing) {
+    let maxEval = -Infinity;
+    for (const move of orderedMoves) {
+      const next = new Chess(game.fen());
+      next.move(move);
+      const evalScore = minimax(next, depth - 1, alpha, beta, false);
+      maxEval = Math.max(maxEval, evalScore);
+      alpha = Math.max(alpha, evalScore);
+      if (beta <= alpha) break;
+    }
+    return maxEval;
+  }
+
+  let minEval = Infinity;
+  for (const move of orderedMoves) {
+    const next = new Chess(game.fen());
+    next.move(move);
+    const evalScore = minimax(next, depth - 1, alpha, beta, true);
+    minEval = Math.min(minEval, evalScore);
+    beta = Math.min(beta, evalScore);
+    if (beta <= alpha) break;
+  }
+  return minEval;
 }
 
 function getBestMove(game: Chess, difficulty: Difficulty) {
   const moves = game.moves({ verbose: true });
   if (!moves.length) return null;
 
+  const depth = difficulty === 1 ? 1 : difficulty === 2 ? 2 : difficulty === 3 ? 2 : difficulty === 4 ? 3 : 4;
+  const maximizing = game.turn() === "w";
+
   const scored = moves.map((m) => {
     const test = new Chess(game.fen());
     test.move(m);
+    let score = minimax(test, depth - 1, -Infinity, Infinity, !maximizing);
 
-    let score = 0;
+    if (m.captured) score += maximizing ? 20 : -20;
+    if (m.promotion) score += maximizing ? 50 : -50;
+    if (test.inCheck()) score += maximizing ? 25 : -25;
+    if (test.isCheckmate()) score += maximizing ? 100000 : -100000;
 
-    score += Math.random() * (6 - difficulty);
-
-    if (m.captured) score += 5 + difficulty * 2;
-    if (m.promotion) score += 10 + difficulty * 2;
-    if (test.inCheck()) score += 3 * difficulty;
-    if (test.isCheckmate()) score += 1000;
-
-    const centerBonus = ["d4", "d5", "e4", "e5"].includes(m.to) ? difficulty : 0;
-    score += centerBonus;
-
-    if (difficulty >= 3) {
-      score += Math.abs(evaluatePosition(test)) * difficulty;
-    }
+    const noise = difficulty <= 2 ? Math.random() * 60 - 30 : difficulty === 3 ? Math.random() * 18 - 9 : 0;
+    score += noise;
 
     return { move: m, score };
   });
 
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => maximizing ? b.score - a.score : a.score - b.score);
 
   if (difficulty === 1) {
-    return scored[Math.floor(Math.random() * scored.length)].move;
+    const pool = scored.slice(0, Math.min(4, scored.length));
+    return pool[Math.floor(Math.random() * pool.length)].move;
   }
 
   if (difficulty === 2) {
@@ -374,8 +425,8 @@ function getWinChances(game: Chess): WinChances {
     return { white: 50, black: 50 };
   }
 
-  const evalScore = evaluatePosition(game);
-  const whiteRaw = 50 + evalScore * 7.5;
+  const evalScore = evaluatePosition(game) / 100;
+  const whiteRaw = 50 + evalScore * 3.5;
   const white = Math.round(clamp(whiteRaw, 1, 99));
   const black = 100 - white;
 
@@ -504,7 +555,8 @@ function parseVoiceMove(text: string, game: Chess) {
 }
 
 export default function ChessilouV2() {
-  const [screen, setScreen] = useState<"setup" | "play">("setup");
+  const [screen, setScreen] = useState<Screen>("landing");
+  const [tutorialIndex, setTutorialIndex] = useState(0);
   const [lang, setLang] = useState<Lang>("en");
   const [setup, setSetup] = useState<SetupState>({
     gameMode: "classic",
@@ -512,10 +564,52 @@ export default function ChessilouV2() {
     controlMode: "quiet",
   });
 
-  const [difficulty, setDifficulty] = useState<Difficulty>(1);
+  const [difficulty, setDifficulty] = useState<Difficulty>(3);
 
   const t = translations[lang];
   const ui = getUiText(lang);
+  const entryTexts = {
+    en: {
+      landingTitle: "Chessilou - Universal Family Chess",
+      landingSubtitle: "Your playful chess companion by Lobster Inc.",
+      chooseLanguage: "Choose your language",
+      tutorialTitle: "Friendly working instruction",
+      slides: [
+        { icon: "♟️", title: "Welcome to Chessilou", body: "Pick your language, learn the basics, then enter setup before the real battle begins." },
+        { icon: "🖐️", title: "Move your pieces", body: "Tap a piece, then tap the target square. You can also drag and drop, or use voice mode." },
+        { icon: "🔥", title: "Lili got stronger", body: "Levels 4 and 5 now hit harder. Mistakes get punished much faster than before." },
+        { icon: "🚀", title: "Ready?", body: "After this short guide, choose your mode, difficulty, and start the game." },
+      ],
+      next: "Next", back: "Back", skip: "Skip", startSetup: "Go to setup", goodbye: "Good bye",
+    },
+    fr: {
+      landingTitle: "Chessilou - Universal Family Chess",
+      landingSubtitle: "Votre compagnon d’échecs par Lobster Inc.",
+      chooseLanguage: "Choisissez votre langue",
+      tutorialTitle: "Instructions amicales",
+      slides: [
+        { icon: "♟️", title: "Bienvenue sur Chessilou", body: "Choisissez votre langue, découvrez les bases, puis entrez dans la configuration avant la vraie bataille." },
+        { icon: "🖐️", title: "Déplacez vos pièces", body: "Touchez une pièce puis la case cible. Vous pouvez aussi glisser-déposer ou utiliser la voix." },
+        { icon: "🔥", title: "Lili est plus forte", body: "Les niveaux 4 et 5 sont maintenant bien plus sévères. Les erreurs sont punies plus vite." },
+        { icon: "🚀", title: "Prêt ?", body: "Après ce mini-guide, choisissez votre mode, votre niveau, puis lancez la partie." },
+      ],
+      next: "Suivant", back: "Retour", skip: "Passer", startSetup: "Aller à la configuration", goodbye: "Au revoir",
+    },
+    de: {
+      landingTitle: "Chessilou - Universal Family Chess",
+      landingSubtitle: "Dein Schachbegleiter von Lobster Inc.",
+      chooseLanguage: "Wähle deine Sprache",
+      tutorialTitle: "Freundliche Anleitung",
+      slides: [
+        { icon: "♟️", title: "Willkommen bei Chessilou", body: "Wähle deine Sprache, lerne die Grundlagen und gehe dann ins Setup vor dem echten Duell." },
+        { icon: "🖐️", title: "Ziehe deine Figuren", body: "Tippe auf eine Figur und dann auf das Zielfeld. Du kannst auch Drag-and-Drop oder die Stimme nutzen." },
+        { icon: "🔥", title: "Lili ist stärker geworden", body: "Die Levels 4 und 5 bestrafen Fehler jetzt deutlich härter." },
+        { icon: "🚀", title: "Bereit?", body: "Nach dieser kurzen Anleitung wählst du Modus und Schwierigkeit und startest dann das Spiel." },
+      ],
+      next: "Weiter", back: "Zurück", skip: "Überspringen", startSetup: "Zum Setup", goodbye: "Auf Wiedersehen",
+    },
+  } as const;
+  const entry = entryTexts[lang];
 
   const [game, setGame] = useState(() => new Chess());
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
@@ -582,7 +676,7 @@ export default function ChessilouV2() {
   useEffect(() => {
     if (!isAiThinking || !pendingAiFen) return;
 
-    const delay = getAiDelay(setup.gameMode);
+    const delay = getAiDelay(setup.gameMode, difficulty);
 
     const timer = window.setTimeout(() => {
       const finalGame = new Chess(pendingAiFen);
@@ -602,7 +696,7 @@ export default function ChessilouV2() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, ui.youCheckmated, ui.liliPlayed, t.draw]);
+  }, [isAiThinking, pendingAiFen, pendingAiSan, setup.gameMode, difficulty, ui.youCheckmated, ui.liliPlayed, t.draw]);
 
   const winChances = useMemo(() => getWinChances(game), [game]);
 
@@ -645,6 +739,29 @@ export default function ChessilouV2() {
       } catch {}
     }
     setIsListening(false);
+  }
+
+  function goToLanding() {
+    stopVoiceRecognition();
+    setLastVoiceText("");
+    setGame(new Chess());
+    clearSelection();
+    setStatus(t.welcome);
+    setTutorialExample(getRandomTutorialExample());
+    setShowQuietTutorial(false);
+    setIsAiThinking(false);
+    setPendingAiFen(null);
+    setPendingAiSan(null);
+    setShowAdvancedOptions(false);
+    setShowBrandInfo(false);
+    setTutorialIndex(0);
+    setScreen("landing");
+  }
+
+  function goToTutorial(language: Lang) {
+    setLang(language);
+    setTutorialIndex(0);
+    setScreen("tutorial");
   }
 
   function restartGame() {
@@ -1352,6 +1469,13 @@ export default function ChessilouV2() {
           </div>
         </ActionButton>
       </div>
+      <div style={{ marginTop: 12 }}>
+        <ActionButton onClick={goToLanding} fullWidth>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <LogOut size={16} /> {ui.goodbye}
+          </div>
+        </ActionButton>
+      </div>
     </Panel>
   );
 
@@ -1436,6 +1560,140 @@ export default function ChessilouV2() {
     </Panel>
   );
 
+  const landingView = (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <div
+        style={{
+          minHeight: "70vh",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <div style={{ display: "grid", gap: 22, textAlign: "center", width: "100%", maxWidth: 760 }}>
+          <button
+            onClick={() => setShowBrandInfo((v) => !v)}
+            style={{ background: "transparent", border: "none", cursor: "pointer", justifySelf: "center" }}
+          >
+            <div
+              style={{
+                width: 150,
+                height: 150,
+                margin: "0 auto",
+                borderRadius: "999px",
+                display: "grid",
+                placeItems: "center",
+                background: "radial-gradient(circle, rgba(59,130,246,0.28), rgba(59,130,246,0.04) 68%, transparent 100%)",
+                boxShadow: "0 0 36px rgba(59,130,246,0.45), 0 0 78px rgba(59,130,246,0.18)",
+              }}
+            >
+              <img
+                src={lobster}
+                alt="Lobster Inc."
+                style={{ width: 94, height: 94, objectFit: "contain", filter: "drop-shadow(0 0 18px rgba(96,165,250,0.65))" }}
+              />
+            </div>
+          </button>
+
+          <div style={{ display: "grid", gap: 10 }}>
+            <h1 style={{ margin: 0, fontSize: "clamp(32px, 5vw, 48px)", fontWeight: 800 }}>{entry.landingTitle}</h1>
+            <div style={{ color: "rgba(255,255,255,0.82)", fontSize: 18 }}>{entry.landingSubtitle}</div>
+            <div style={{ color: "#93c5fd", fontSize: 18, fontWeight: 700 }}>{entry.chooseLanguage}</div>
+          </div>
+
+          <div style={{ maxWidth: 420, width: "100%", margin: "0 auto", display: "grid", gap: 14 }}>
+            {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
+              <button
+                key={languageKey}
+                onClick={() => goToTutorial(languageKey)}
+                style={{
+                  borderRadius: 18,
+                  border: "1px solid rgba(96,165,250,0.32)",
+                  background: "linear-gradient(180deg, rgba(17,24,39,0.95), rgba(15,23,42,0.95))",
+                  color: "#fff",
+                  padding: "18px 20px",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 0 16px rgba(59,130,246,0.16)",
+                }}
+              >
+                <span style={{ marginRight: 10 }}>{t.flags[languageKey]}</span>
+                {t.langNames[languageKey]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  const tutorialView = (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <div style={{ minHeight: "70vh", display: "grid", placeItems: "center" }}>
+        <div style={{ width: "100%", maxWidth: 860, display: "grid", gap: 20 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+            {entry.slides.map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  width: tutorialIndex === index ? 36 : 12,
+                  height: 12,
+                  borderRadius: 999,
+                  background: tutorialIndex === index ? "#3b82f6" : "rgba(255,255,255,0.16)",
+                  boxShadow: tutorialIndex === index ? "0 0 18px rgba(59,130,246,0.55)" : "none",
+                  transition: "all 180ms ease",
+                }}
+              />
+            ))}
+          </div>
+
+          <div
+            style={{
+              borderRadius: 28,
+              border: "1px solid rgba(96,165,250,0.24)",
+              background: "linear-gradient(180deg, rgba(10,15,28,0.98), rgba(7,10,20,0.98))",
+              boxShadow: "0 0 34px rgba(59,130,246,0.12)",
+              padding: 32,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ width: 96, height: 96, borderRadius: 999, margin: "0 auto 20px", display: "grid", placeItems: "center", background: "rgba(59,130,246,0.10)", border: "1px solid rgba(96,165,250,0.22)", fontSize: 40, boxShadow: "0 0 22px rgba(59,130,246,0.18)" }}>
+              {entry.slides[tutorialIndex].icon}
+            </div>
+            <div style={{ color: "#93c5fd", fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{entry.tutorialTitle}</div>
+            <h2 style={{ margin: "0 0 14px", fontSize: "clamp(28px, 4vw, 38px)" }}>{entry.slides[tutorialIndex].title}</h2>
+            <p style={{ margin: "0 auto", maxWidth: 620, color: "rgba(255,255,255,0.82)", fontSize: 18, lineHeight: 1.7 }}>{entry.slides[tutorialIndex].body}</p>
+
+            <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap", marginTop: 28 }}>
+              <button
+                onClick={() => setTutorialIndex((prev) => Math.max(0, prev - 1))}
+                disabled={tutorialIndex === 0}
+                style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.04)", color: "#fff", padding: "14px 18px", cursor: tutorialIndex === 0 ? "not-allowed" : "pointer", opacity: tutorialIndex === 0 ? 0.4 : 1, fontWeight: 700 }}
+              >
+                {entry.back}
+              </button>
+              <button
+                onClick={() => setScreen("setup")}
+                style={{ borderRadius: 16, border: "1px dashed rgba(96,165,250,0.32)", background: "transparent", color: "#cfe6ff", padding: "14px 18px", cursor: "pointer", fontWeight: 700 }}
+              >
+                {entry.skip}
+              </button>
+              <button
+                onClick={() => {
+                  if (tutorialIndex < entry.slides.length - 1) setTutorialIndex((prev) => prev + 1);
+                  else setScreen("setup");
+                }}
+                style={{ borderRadius: 16, border: "1px solid rgba(96,165,250,0.45)", background: "linear-gradient(180deg, #0d7fff, #005fca)", color: "#fff", padding: "14px 18px", cursor: "pointer", fontWeight: 800, boxShadow: "0 0 18px rgba(59,130,246,0.26)" }}
+              >
+                {tutorialIndex === entry.slides.length - 1 ? entry.startSetup : entry.next}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
   const setupView = (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <div
@@ -1495,33 +1753,70 @@ export default function ChessilouV2() {
                   [4, ui.d4],
                   [5, ui.d5],
                 ] as [Difficulty, string][]
-              ).map(([lvl, label]) => (
-                <ActionButton
-                  key={lvl}
-                  onClick={() => setDifficulty(lvl)}
-                  active={difficulty === lvl}
-                  fullWidth
-                >
-                  <div style={{ textAlign: "left", width: "100%", fontWeight: 700 }}>
-                    {lvl}. {label}
+              ).map(([lvl, label]) => {
+                const isLevel4 = lvl === 4;
+                const isLevel5 = lvl === 5;
+
+                const specialStyle = isLevel4
+                  ? {
+                      border: difficulty === lvl ? "1px solid rgba(250, 204, 21, 0.85)" : "1px solid rgba(250, 204, 21, 0.45)",
+                      boxShadow: difficulty === lvl ? "0 0 24px rgba(250, 204, 21, 0.45), 0 0 48px rgba(250, 204, 21, 0.18)" : "0 0 14px rgba(250, 204, 21, 0.18)",
+                      borderRadius: 18,
+                    }
+                  : isLevel5
+                  ? {
+                      border: difficulty === lvl ? "1px solid rgba(239, 68, 68, 0.9)" : "1px solid rgba(239, 68, 68, 0.5)",
+                      boxShadow: difficulty === lvl ? "0 0 26px rgba(239, 68, 68, 0.48), 0 0 54px rgba(239, 68, 68, 0.22)" : "0 0 14px rgba(239, 68, 68, 0.18)",
+                      borderRadius: 18,
+                    }
+                  : {};
+
+                return (
+                  <div key={lvl} style={{ display: "grid", gap: 6 }}>
+                    <div style={specialStyle}>
+                      <ActionButton onClick={() => setDifficulty(lvl)} active={difficulty === lvl} fullWidth>
+                        <div style={{ textAlign: "left", width: "100%", fontWeight: 700 }}>
+                          {lvl}. {label}
+                        </div>
+                      </ActionButton>
+                    </div>
+
+                    {(isLevel4 || isLevel5) && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          lineHeight: 1.5,
+                          color: isLevel5 ? "#fca5a5" : "#fcd34d",
+                          padding: "0 12px 2px 12px",
+                          textAlign: "left",
+                          fontWeight: 700,
+                          letterSpacing: "0.01em",
+                          textShadow: isLevel5 ? "0 0 10px rgba(239, 68, 68, 0.28)" : "0 0 10px rgba(250, 204, 21, 0.22)",
+                        }}
+                      >
+                        {lang === "fr"
+                          ? isLevel4
+                            ? "⚠️ Niveau sérieux. Lili commence vraiment à punir les erreurs."
+                            : "🔥 Attention. Réservé aux courageux. Pas pour les âmes sensibles."
+                          : lang === "de"
+                          ? isLevel4
+                            ? "⚠️ Ernstes Niveau. Lili bestraft Fehler jetzt deutlich härter."
+                            : "🔥 Warnung. Nur für Mutige. Nichts für schwache Nerven."
+                          : isLevel4
+                          ? "⚠️ Serious level. Lili starts punishing mistakes for real."
+                          : "🔥 Warning. For the brave only. Not for the faint-hearted."}
+                      </div>
+                    )}
                   </div>
-                </ActionButton>
-              ))}
+                );
+              })}
             </div>
           </Panel>
         )}
 
         <Panel title={ui.chooseMode}>
           {setup.opponentMode === "local" ? (
-            <div
-              style={{
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.10)",
-                padding: 18,
-                fontSize: 14,
-                lineHeight: 1.9,
-              }}
-            >
+            <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.10)", padding: 18, fontSize: 14, lineHeight: 1.9 }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>{t.classic}</div>
               <div style={{ color: "rgba(255,255,255,0.75)" }}>{ui.modeClassicHelp}</div>
             </div>
@@ -1559,52 +1854,19 @@ export default function ChessilouV2() {
 
         <Panel title={t.controlTitle}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <ActionButton
-              onClick={() =>
-                setSetup((prev) => ({
-                  ...prev,
-                  controlMode: "quiet",
-                }))
-              }
-              active={setup.controlMode === "quiet"}
-              fullWidth
-            >
+            <ActionButton onClick={() => setSetup((prev) => ({ ...prev, controlMode: "quiet" }))} active={setup.controlMode === "quiet"} fullWidth>
               {t.quiet}
             </ActionButton>
-
-            <ActionButton
-              onClick={() =>
-                setSetup((prev) => ({
-                  ...prev,
-                  controlMode: "voice",
-                }))
-              }
-              active={setup.controlMode === "voice"}
-              fullWidth
-            >
+            <ActionButton onClick={() => setSetup((prev) => ({ ...prev, controlMode: "voice" }))} active={setup.controlMode === "voice"} fullWidth>
               {t.voice}
             </ActionButton>
           </div>
         </Panel>
 
         <Panel title={t.languageLabel}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gap: 12,
-              maxWidth: 420,
-              width: "100%",
-              margin: "0 auto",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, maxWidth: 420, width: "100%", margin: "0 auto" }}>
             {(["en", "fr", "de"] as Lang[]).map((languageKey) => (
-              <ActionButton
-                key={languageKey}
-                onClick={() => setLang(languageKey)}
-                active={lang === languageKey}
-                fullWidth
-              >
+              <ActionButton key={languageKey} onClick={() => setLang(languageKey)} active={lang === languageKey} fullWidth>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
                   <span style={{ fontSize: 22 }}>{t.flags[languageKey]}</span>
                   <span>{t.langNames[languageKey]}</span>
@@ -1614,20 +1876,20 @@ export default function ChessilouV2() {
           </div>
         </Panel>
 
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "grid", gap: 12, justifyContent: "center" }}>
           <div style={{ width: "100%", maxWidth: 420 }}>
             <Panel title={t.startGame}>
-              <ActionButton
-                onClick={() => {
-                  restartGame();
-                  setScreen("play");
-                }}
-                active
-                fullWidth
-              >
+              <ActionButton onClick={() => { restartGame(); setScreen("play"); }} active fullWidth>
                 {ui.start}
               </ActionButton>
             </Panel>
+          </div>
+          <div style={{ width: "100%", maxWidth: 420 }}>
+            <ActionButton onClick={goToLanding} fullWidth>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <LogOut size={16} /> {entry.goodbye}
+              </div>
+            </ActionButton>
           </div>
         </div>
       </div>
@@ -1657,26 +1919,31 @@ export default function ChessilouV2() {
       }}
     >
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
-        <BrandHeader
-          appName={BRAND.name}
-          lobsterSrc={lobster}
-          showBrandInfo={showBrandInfo}
-          onToggle={() => setShowBrandInfo((v) => !v)}
-          isVoiceLive={isListening}
-          texts={{
-            brandShort: "Chessilou",
-            tagline: "by Lobster Inc. Voice Chess Family",
-            dedication: "Happy Birthday Sandra — welcome to our chess family.",
-            brandClickHint: t.brandClickHint,
-            brandTitle: t.brandTitle,
-            brandSubtitle: t.brandSubtitle,
-            brandBody1: t.brandBody1,
-            brandBody2: t.brandBody2,
-            brandBody3: t.brandBody3,
-          }}
-        />
+        {screen !== "landing" && (
+          <BrandHeader
+            appName={BRAND.name}
+            lobsterSrc={lobster}
+            showBrandInfo={showBrandInfo}
+            onToggle={() => setShowBrandInfo((v) => !v)}
+            isVoiceLive={isListening}
+            texts={{
+              brandShort: "Chessilou",
+              tagline: "by Lobster Inc. Voice Chess Family",
+              dedication: "Happy Birthday Sandra — welcome to our chess family.",
+              brandClickHint: t.brandClickHint,
+              brandTitle: t.brandTitle,
+              brandSubtitle: t.brandSubtitle,
+              brandBody1: t.brandBody1,
+              brandBody2: t.brandBody2,
+              brandBody3: t.brandBody3,
+            }}
+          />
+        )}
 
-        {screen === "setup" ? setupView : playView}
+        {screen === "landing" && landingView}
+        {screen === "tutorial" && tutorialView}
+        {screen === "setup" && setupView}
+        {screen === "play" && playView}
 
         <div style={{ marginTop: 24, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
           {t.allRightsReserved}
