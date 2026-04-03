@@ -681,6 +681,8 @@ export default function ChessilouV2() {
   });
 
   const [difficulty, setDifficulty] = useState<Difficulty>(3);
+  const [setupStage, setSetupStage] = useState<1 | 2 | 3 | 4>(1);
+  const [focusMode, setFocusMode] = useState(true);
 
   const t = translations[lang];
   const ui = getUiText(lang);
@@ -915,13 +917,44 @@ export default function ChessilouV2() {
     setShowAdvancedOptions(false);
     setShowLogoMenu(false);
     setTutorialIndex(0);
+    setSetupStage(1);
+    setFocusMode(true);
     setScreen("landing");
   }
 
   function goToTutorial(language: Lang) {
     setLang(language);
     setTutorialIndex(0);
+    setSetupStage(1);
     setScreen("tutorial");
+  }
+
+  function startQuickGame() {
+    const quickSetup: SetupState = {
+      gameMode: "classic",
+      opponentMode: "ai",
+      controlMode: "quiet",
+    };
+    setSetup(quickSetup);
+    setDifficulty(3);
+    setSetupStage(4);
+
+    const nextGame = new Chess();
+    setGame(nextGame);
+    clearSelection();
+    setStatus(ui.modeClassicHelp);
+    setLastVoiceText("");
+    setIsListening(false);
+    setTutorialExample(getRandomTutorialExample());
+    setShowQuietTutorial(true);
+    setIsAiThinking(false);
+    setPendingAiFen(null);
+    setPendingAiSan(null);
+    setPendingAiSpeech(null);
+    setShowAdvancedOptions(false);
+    setFocusMode(true);
+    stopVoiceRecognition();
+    setScreen("play");
   }
 
   function restartGame() {
@@ -968,6 +1001,8 @@ export default function ChessilouV2() {
     setPendingAiFen(null);
     setPendingAiSan(null);
     setPendingAiSpeech(null);
+    setSetupStage(1);
+    setFocusMode(true);
   }
 
   function finalizeHumanMove(nextGame: Chess, playedSan: string, moveColor: "w" | "b") {
@@ -1317,6 +1352,40 @@ export default function ChessilouV2() {
     );
   }
 
+  const compactPlayHeader = (
+    <div
+      style={{
+        width: "100%",
+        display: "grid",
+        gap: 10,
+        border: "1px solid rgba(255,255,255,0.10)",
+        borderRadius: 18,
+        padding: 14,
+        background: "rgba(10,15,28,0.72)",
+        boxShadow: "0 0 18px rgba(16, 156, 255, 0.06)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.66)", fontWeight: 700 }}>
+          {setup.opponentMode === "ai" ? `${difficultyName}` : ui.twoPlayers}
+        </div>
+        <div style={{ fontSize: 13, color: "#93c5fd", fontWeight: 700 }}>
+          {setup.controlMode === "voice" ? t.voice : t.quiet}
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 15 }}>{status}</div>
+
+      {setup.opponentMode === "ai" && (
+        <TugOfWarGauge
+          white={winChances.white}
+          whiteLabel={ui.whiteLabel}
+          blackLabel={ui.blackLabel}
+        />
+      )}
+    </div>
+  );
+
   const topImmersiveBar = (
     <div style={{ display: "grid", gap: 16, marginBottom: 16, width: "100%" }}>
       <div
@@ -1594,8 +1663,14 @@ export default function ChessilouV2() {
   );
 
   const minimalControls = (
-    <Panel title={ui.minimalControls}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+    <Panel title={focusMode ? `${ui.minimalControls} • Focus` : ui.minimalControls}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: focusMode ? "repeat(4, 1fr)" : "repeat(6, 1fr)",
+          gap: 12,
+        }}
+      >
         <ActionButton onClick={restartGame} fullWidth>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <RotateCcw size={16} /> {t.newGame}
@@ -1615,24 +1690,34 @@ export default function ChessilouV2() {
           </div>
         </ActionButton>
 
-        <ActionButton onClick={stopGame} fullWidth>
+        <ActionButton onClick={() => setFocusMode((v) => !v)} fullWidth>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <StopCircle size={16} /> {ui.stop}
+            <Sparkles size={16} /> {focusMode ? "Full cockpit" : "Focus mode"}
           </div>
         </ActionButton>
 
-        <ActionButton onClick={resignGame} fullWidth>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <Flag size={16} /> {ui.resign}
-          </div>
-        </ActionButton>
+        {!focusMode && (
+          <>
+            <ActionButton onClick={stopGame} fullWidth>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <StopCircle size={16} /> {ui.stop}
+              </div>
+            </ActionButton>
 
-        <ActionButton onClick={() => setShowAdvancedOptions((v) => !v)} fullWidth>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {showAdvancedOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            {ui.hiddenOptions}
-          </div>
-        </ActionButton>
+            <ActionButton onClick={resignGame} fullWidth>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <Flag size={16} /> {ui.resign}
+              </div>
+            </ActionButton>
+
+            <ActionButton onClick={() => setShowAdvancedOptions((v) => !v)} fullWidth>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {showAdvancedOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                {ui.hiddenOptions}
+              </div>
+            </ActionButton>
+          </>
+        )}
       </div>
       <div style={{ marginTop: 12 }}>
         <ActionButton onClick={goToLanding} fullWidth>
@@ -1824,6 +1909,39 @@ export default function ChessilouV2() {
               </motion.div>
             )}
           </AnimatePresence>
+          <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            <button
+              onClick={startQuickGame}
+              style={{
+                borderRadius: 18,
+                border: "1px solid rgba(96,165,250,0.40)",
+                background: "linear-gradient(180deg, #0d7fff, #005fca)",
+                color: "#fff",
+                padding: "16px 20px",
+                fontSize: 17,
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow: "0 0 18px rgba(59,130,246,0.24)",
+              }}
+            >
+              Quick game
+            </button>
+            <button
+              onClick={() => setScreen("tutorial")}
+              style={{
+                borderRadius: 18,
+                border: "1px solid rgba(96,165,250,0.28)",
+                background: "rgba(255,255,255,0.03)",
+                color: "#dbeafe",
+                padding: "16px 20px",
+                fontSize: 17,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Guided setup
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -1902,11 +2020,33 @@ export default function ChessilouV2() {
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr)",
-          gap: 24,
-          maxWidth: 960,
+          gap: 18,
+          maxWidth: 920,
           margin: "0 auto",
         }}
       >
+        <div
+          style={{
+            display: "grid",
+            gap: 8,
+            textAlign: "center",
+            marginBottom: 6,
+          }}
+        >
+          <div style={{ color: "#93c5fd", fontSize: 14, fontWeight: 700 }}>
+            {setupStage === 1 ? "Step 1 • Pick your opponent" : setupStage === 2 ? "Step 2 • Choose the pressure" : setupStage === 3 ? "Step 3 • Choose the atmosphere" : "Step 4 • Ready to play"}
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.76)", fontSize: 15 }}>
+            {setupStage === 1
+              ? "Start simple. We reveal the rest only when you need it."
+              : setupStage === 2
+              ? "Choose challenge and style."
+              : setupStage === 3
+              ? "Quiet and focused, or spoken and social."
+              : "Your game is almost ready."}
+          </div>
+        </div>
+
         <Panel title={ui.playerType}>
           <div style={{ display: "grid", gap: 16 }}>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.70)" }}>
@@ -1915,13 +2055,14 @@ export default function ChessilouV2() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <ActionButton
-                onClick={() =>
+                onClick={() => {
                   setSetup((prev) => ({
                     ...prev,
                     opponentMode: "local",
                     gameMode: "classic",
-                  }))
-                }
+                  }));
+                  setSetupStage(3);
+                }}
                 active={setup.opponentMode === "local"}
                 fullWidth
               >
@@ -1929,12 +2070,10 @@ export default function ChessilouV2() {
               </ActionButton>
 
               <ActionButton
-                onClick={() =>
-                  setSetup((prev) => ({
-                    ...prev,
-                    opponentMode: "ai",
-                  }))
-                }
+                onClick={() => {
+                  setSetup((prev) => ({ ...prev, opponentMode: "ai" }));
+                  setSetupStage(2);
+                }}
                 active={setup.opponentMode === "ai"}
                 fullWidth
               >
@@ -1944,269 +2083,178 @@ export default function ChessilouV2() {
           </div>
         </Panel>
 
-        {setup.opponentMode === "ai" && (
-          <Panel title={ui.chooseDifficulty}>
-            <div style={{ display: "grid", gap: 12 }}>
-              {(
-                [
-                  [1, ui.d1],
-                  [2, ui.d2],
-                  [3, ui.d3],
-                  [4, ui.d4],
-                  [5, ui.d5],
-                ] as [Difficulty, string][]
-              ).map(([lvl, label]) => {
-                const isLevel4 = lvl === 4;
-                const isLevel5 = lvl === 5;
-
-                const specialStyle = isLevel4
-                  ? {
-                      border: difficulty === lvl ? "1px solid rgba(250, 204, 21, 0.85)" : "1px solid rgba(250, 204, 21, 0.45)",
-                      boxShadow: difficulty === lvl ? "0 0 24px rgba(250, 204, 21, 0.45), 0 0 48px rgba(250, 204, 21, 0.18)" : "0 0 14px rgba(250, 204, 21, 0.18)",
-                      borderRadius: 18,
-                    }
-                  : isLevel5
-                  ? {
-                      border: difficulty === lvl ? "1px solid rgba(239, 68, 68, 0.9)" : "1px solid rgba(239, 68, 68, 0.5)",
-                      boxShadow: difficulty === lvl ? "0 0 26px rgba(239, 68, 68, 0.48), 0 0 54px rgba(239, 68, 68, 0.22)" : "0 0 14px rgba(239, 68, 68, 0.18)",
-                      borderRadius: 18,
-                    }
-                  : {};
-
-                return (
-                  <div key={lvl} style={{ display: "grid", gap: 6 }}>
-                    <div style={specialStyle}>
-                      <ActionButton onClick={() => setDifficulty(lvl)} active={difficulty === lvl} fullWidth>
-                        <div style={{ textAlign: "left", width: "100%", fontWeight: 700 }}>
-                          {lvl}. {label}
-                        </div>
-                      </ActionButton>
-                    </div>
-
-                    {(isLevel4 || isLevel5) && (
+        {setupStage >= 2 && setup.opponentMode === "ai" && (
+          <>
+            <Panel title={ui.chooseDifficulty}>
+              <div style={{ display: "grid", gap: 12 }}>
+                {(
+                  [
+                    [1, ui.d1],
+                    [2, ui.d2],
+                    [3, ui.d3],
+                    [4, ui.d4],
+                    [5, ui.d5],
+                  ] as [Difficulty, string][]
+                ).map(([lvl, label]) => {
+                  const isLevel4 = lvl === 4;
+                  const isLevel5 = lvl === 5;
+                  return (
+                    <div key={lvl} style={{ display: "grid", gap: 6 }}>
                       <div
                         style={{
-                          fontSize: 12,
-                          lineHeight: 1.5,
-                          color: isLevel5 ? "#fca5a5" : "#fcd34d",
-                          padding: "0 12px 2px 12px",
-                          textAlign: "left",
-                          fontWeight: 700,
-                          letterSpacing: "0.01em",
-                          textShadow: isLevel5 ? "0 0 10px rgba(239, 68, 68, 0.28)" : "0 0 10px rgba(250, 204, 21, 0.22)",
+                          borderRadius: 18,
+                          border: isLevel4
+                            ? difficulty === lvl
+                              ? "1px solid rgba(250, 204, 21, 0.85)"
+                              : "1px solid rgba(250, 204, 21, 0.32)"
+                            : isLevel5
+                            ? difficulty === lvl
+                              ? "1px solid rgba(239, 68, 68, 0.9)"
+                              : "1px solid rgba(239, 68, 68, 0.34)"
+                            : "none",
+                          boxShadow: isLevel4
+                            ? "0 0 16px rgba(250, 204, 21, 0.14)"
+                            : isLevel5
+                            ? "0 0 18px rgba(239, 68, 68, 0.16)"
+                            : "none",
                         }}
                       >
-                        {lang === "fr"
-                          ? isLevel4
-                            ? "⚠️ Zone 1800 ELO. Lili commence vraiment à punir les erreurs."
-                            : "🔥 Zone 2100 ELO. Répertoire d’ouvertures actif. Pas pour les âmes sensibles."
-                          : lang === "de"
-                          ? isLevel4
-                            ? "⚠️ 1800-ELO-Zone. Lili bestraft Fehler jetzt deutlich härter."
-                            : "🔥 2100-ELO-Zone. Eröffnungsbuch aktiv. Nichts für schwache Nerven."
-                          : isLevel4
-                          ? "⚠️ 1800 ELO zone. Lili starts punishing mistakes for real."
-                          : "🔥 2100 ELO zone. Opening book active. Not for the faint-hearted."}
+                        <ActionButton
+                          onClick={() => setDifficulty(lvl)}
+                          active={difficulty === lvl}
+                          fullWidth
+                        >
+                          <div style={{ textAlign: "left", width: "100%", fontWeight: 700 }}>
+                            {lvl}. {label}
+                          </div>
+                        </ActionButton>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Panel title={ui.chooseMode}>
+              <div style={{ display: "grid", gap: 12 }}>
+                {(
+                  [
+                    ["classic", t.classic, ui.modeClassicHelp],
+                    ["learn", t.learn, ui.modeLearnHelp],
+                    ["mate5", ui.mateIn5, ui.modeMate5Help],
+                    ["protect", ui.godSaveTheKing, ui.modeProtectHelp],
+                    ["battle", ui.battleRoyal, ui.modeBattleHelp],
+                  ] as [GameMode, string, string][]
+                ).map(([modeKey, title, desc]) => (
+                  <ActionButton
+                    key={modeKey}
+                    onClick={() => {
+                      setSetup((prev) => ({ ...prev, gameMode: modeKey }));
+                      setSetupStage(3);
+                    }}
+                    active={setup.gameMode === modeKey}
+                    fullWidth
+                  >
+                    <div style={{ textAlign: "left", width: "100%" }}>
+                      <div style={{ fontWeight: 700 }}>{title}</div>
+                      <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>{desc}</div>
+                    </div>
+                  </ActionButton>
+                ))}
+              </div>
+            </Panel>
+          </>
         )}
 
-        <Panel title={ui.chooseMode}>
-          {setup.opponentMode === "local" ? (
-            <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.10)", padding: 18, fontSize: 14, lineHeight: 1.9 }}>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>{t.classic}</div>
-              <div style={{ color: "rgba(255,255,255,0.75)" }}>{ui.modeClassicHelp}</div>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {(
-                [
-                  ["classic", t.classic, ui.modeClassicHelp],
-                  ["learn", t.learn, ui.modeLearnHelp],
-                  ["mate5", ui.mateIn5, ui.modeMate5Help],
-                  ["protect", ui.godSaveTheKing, ui.modeProtectHelp],
-                  ["battle", ui.battleRoyal, ui.modeBattleHelp],
-                ] as [GameMode, string, string][]
-              ).map(([modeKey, title, desc]) => (
+        {setupStage >= 3 && (
+          <>
+            <Panel title={t.controlTitle}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <ActionButton
-                  key={modeKey}
-                  onClick={() =>
-                    setSetup((prev) => ({
-                      ...prev,
-                      gameMode: modeKey,
-                    }))
-                  }
-                  active={setup.gameMode === modeKey}
+                  onClick={() => {
+                    setSetup((prev) => ({ ...prev, controlMode: "quiet" }));
+                    setFocusMode(true);
+                    setSetupStage(4);
+                  }}
+                  active={setup.controlMode === "quiet"}
                   fullWidth
                 >
-                  <div style={{ textAlign: "left", width: "100%" }}>
-                    <div style={{ fontWeight: 700 }}>{title}</div>
-                    <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>{desc}</div>
-                  </div>
+                  {t.quiet}
                 </ActionButton>
-              ))}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title={t.controlTitle}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <ActionButton onClick={() => setSetup((prev) => ({ ...prev, controlMode: "quiet" }))} active={setup.controlMode === "quiet"} fullWidth>
-              {t.quiet}
-            </ActionButton>
-            <ActionButton onClick={() => setSetup((prev) => ({ ...prev, controlMode: "voice" }))} active={setup.controlMode === "voice"} fullWidth>
-              {t.voice}
-            </ActionButton>
-          </div>
-        </Panel>
-
-        <Panel
-          title={
-            lang === "fr"
-              ? "Guide ELO & légendes"
-              : lang === "de"
-              ? "ELO-Leitfaden & Legenden"
-              : "ELO guide & legends"
-          }
-        >
-          <div
-            style={{
-              display: "grid",
-              gap: 14,
-              maxWidth: 760,
-              width: "100%",
-              margin: "0 auto",
-            }}
-          >
-            <div
-              style={{
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.10)",
-                padding: 16,
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.84)",
-                fontSize: 14,
-              }}
-            >
-              {lang === "fr"
-                ? "L’ELO est un système de classement aux échecs. Plus le nombre est élevé, plus le niveau attendu est fort. Ici, cela donne une idée simple de la force de Lili."
-                : lang === "de"
-                ? "ELO ist ein Schach-Bewertungssystem. Je höher die Zahl, desto stärker ist das erwartete Spielniveau. Hier gibt es dir eine einfache Orientierung, wie stark Lili ungefähr spielt."
-                : "ELO is a chess rating system. The higher the number, the stronger the expected level of play. Here, it gives players a simple feel for how strong Lili is."}
-            </div>
-
-            <div style={{ display: "grid", gap: 10 }}>
-              {[
-                {
-                  level: "900 ELO",
-                  titleEn: "Newbie",
-                  titleFr: "Débutant",
-                  titleDe: "Anfänger",
-                  bodyEn: "Learns the basics, misses tactics, and is ideal for first games.",
-                  bodyFr: "Apprend les bases, rate souvent les tactiques, parfait pour débuter.",
-                  bodyDe: "Lernt noch die Grundlagen, übersieht Taktiken und ist ideal für den Einstieg.",
-                },
-                {
-                  level: "1200 ELO",
-                  titleEn: "Street Hustler",
-                  titleFr: "Hustler de rue",
-                  titleDe: "Straßen-Hustler",
-                  bodyEn: "More alert, sees simple traps, and punishes very loose moves.",
-                  bodyFr: "Plus attentif, voit les pièges simples et punit les coups trop relâchés.",
-                  bodyDe: "Wachsamer, erkennt einfache Fallen und bestraft sehr lockere Züge.",
-                },
-                {
-                  level: "1500 ELO",
-                  titleEn: "Competition",
-                  titleFr: "Compétition",
-                  titleDe: "Wettkampf",
-                  bodyEn: "A solid club-player feel. Better development, cleaner plans, fewer gifts.",
-                  bodyFr: "Un vrai parfum de joueur de club. Meilleur développement, plans plus propres, moins de cadeaux.",
-                  bodyDe: "Fühlt sich wie ein solider Vereinsspieler an. Bessere Entwicklung, klarere Pläne, weniger Geschenke.",
-                },
-                {
-                  level: "1800 ELO",
-                  titleEn: "Bobby Fischer",
-                  titleFr: "Bobby Fischer",
-                  titleDe: "Bobby Fischer",
-                  bodyEn: "Named after the legendary American world champion, famous for precision, willpower, and ruthless attacking clarity.",
-                  bodyFr: "Nommé d’après le légendaire champion du monde américain, célèbre pour sa précision, sa volonté et sa clarté offensive impitoyable.",
-                  bodyDe: "Benannt nach dem legendären amerikanischen Weltmeister, berühmt für Präzision, Willenskraft und gnadenlose Angriffsklarheit.",
-                },
-                {
-                  level: "2100 ELO",
-                  titleEn: "Judit Polgár",
-                  titleFr: "Judit Polgár",
-                  titleDe: "Judit Polgár",
-                  bodyEn: "Inspired by Judit Polgár, one of the greatest attacking players ever, famous for fearless, creative, elite-level chess.",
-                  bodyFr: "Inspiré par Judit Polgár, l’une des plus grandes joueuses d’attaque de l’histoire, célèbre pour un jeu créatif, audacieux et de niveau élite.",
-                  bodyDe: "Inspiriert von Judit Polgár, einer der größten Angriffsspielerinnen überhaupt, berühmt für furchtloses, kreatives Schach auf Elite-Niveau.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.level}
-                  style={{
-                    borderRadius: 18,
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    padding: 14,
-                    background:
-                      item.level === "1800 ELO"
-                        ? "rgba(250, 204, 21, 0.06)"
-                        : item.level === "2100 ELO"
-                        ? "rgba(239, 68, 68, 0.06)"
-                        : "transparent",
-                    boxShadow:
-                      item.level === "1800 ELO"
-                        ? "0 0 14px rgba(250, 204, 21, 0.08)"
-                        : item.level === "2100 ELO"
-                        ? "0 0 14px rgba(239, 68, 68, 0.08)"
-                        : "none",
+                <ActionButton
+                  onClick={() => {
+                    setSetup((prev) => ({ ...prev, controlMode: "voice" }));
+                    setFocusMode(false);
+                    setSetupStage(4);
                   }}
+                  active={setup.controlMode === "voice"}
+                  fullWidth
                 >
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>
-                    {item.level} • {lang === "fr" ? item.titleFr : lang === "de" ? item.titleDe : item.titleEn}
-                  </div>
-                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.80)", lineHeight: 1.65 }}>
-                    {lang === "fr" ? item.bodyFr : lang === "de" ? item.bodyDe : item.bodyEn}
-                  </div>
+                  {t.voice}
+                </ActionButton>
+              </div>
+            </Panel>
+
+            <Panel
+              title={lang === "fr" ? "Repères rapides" : lang === "de" ? "Schnelle Orientierung" : "Quick guide"}
+            >
+              <div style={{ display: "grid", gap: 12, lineHeight: 1.65, color: "rgba(255,255,255,0.82)", fontSize: 14 }}>
+                <div>
+                  {lang === "fr"
+                    ? "900 à 1200 ELO : niveau découverte. 1500 : vrai parfum de club. 1800 et 2100 : ça commence à piquer."
+                    : lang === "de"
+                    ? "900 bis 1200 ELO: Einstieg. 1500: klarer Vereinscharakter. 1800 und 2100: jetzt wird es ernst."
+                    : "900 to 1200 ELO feels beginner-to-street-smart. 1500 feels like a real club player. 1800 and 2100 start to bite."}
                 </div>
-              ))}
+                <div>
+                  {lang === "fr"
+                    ? "Bobby Fischer évoque la précision et la volonté. Judit Polgár évoque le courage créatif et l’attaque."
+                    : lang === "de"
+                    ? "Bobby Fischer steht für Präzision und Willenskraft. Judit Polgár steht für kreative Angriffslust."
+                    : "Bobby Fischer stands for precision and willpower. Judit Polgár stands for fearless creative attack."}
+                </div>
+              </div>
+            </Panel>
+          </>
+        )}
+
+        {setupStage >= 4 && (
+          <div style={{ display: "grid", gap: 12, justifyContent: "center" }}>
+            <div style={{ width: "100%", maxWidth: 420 }}>
+              <Panel title={t.startGame}>
+                <ActionButton
+                  onClick={() => {
+                    restartGame();
+                    setScreen("play");
+                  }}
+                  active
+                  fullWidth
+                >
+                  {setup.opponentMode === "ai" ? "Start the duel" : ui.start}
+                </ActionButton>
+              </Panel>
+            </div>
+
+            <div style={{ width: "100%", maxWidth: 420 }}>
+              <ActionButton onClick={goToLanding} fullWidth>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <LogOut size={16} /> {entry.goodbye}
+                </div>
+              </ActionButton>
             </div>
           </div>
-        </Panel>
-
-        <div style={{ display: "grid", gap: 12, justifyContent: "center" }}>
-          <div style={{ width: "100%", maxWidth: 420 }}>
-            <Panel title={t.startGame}>
-              <ActionButton onClick={() => { restartGame(); setScreen("play"); }} active fullWidth>
-                {ui.start}
-              </ActionButton>
-            </Panel>
-          </div>
-          <div style={{ width: "100%", maxWidth: 420 }}>
-            <ActionButton onClick={goToLanding} fullWidth>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <LogOut size={16} /> {entry.goodbye}
-              </div>
-            </ActionButton>
-          </div>
-        </div>
+        )}
       </div>
     </motion.div>
   );
 
   const playView = (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      <div style={{ width: "100%", maxWidth: playStageMaxWidth, margin: "0 auto", display: "grid", gap: 20 }}>
-        {topImmersiveBar}
+      <div style={{ width: "100%", maxWidth: playStageMaxWidth, margin: "0 auto", display: "grid", gap: 16 }}>
+        {focusMode ? compactPlayHeader : topImmersiveBar}
         {boardView}
         {minimalControls}
-        {advancedOptionsPanel}
+        {!focusMode && advancedOptionsPanel}
       </div>
     </motion.div>
   );
